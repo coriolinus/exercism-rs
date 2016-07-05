@@ -21,31 +21,26 @@ fn test_count_empty() {
 }
 
 #[test]
-#[ignore]
 fn test_count_repetitive_cytosine() {
     assert_eq!(dna::count('C', "CCCCC"), 5);
 }
 
 #[test]
-#[ignore]
 fn test_count_only_thymine() {
     assert_eq!(dna::count('T', "GGGGGTAACCCGG"), 1);
 }
 
 #[test]
-#[ignore]
 fn test_nucleotide_count_empty() {
     check_dna("", &[('A', 0), ('T', 0), ('C', 0), ('G', 0)]);
 }
 
 #[test]
-#[ignore]
 fn test_nucleotide_count_only_guanine() {
     check_dna("GGGGGGGG", &[('A', 0), ('T', 0), ('C', 0), ('G', 8)]);
 }
 
 #[test]
-#[ignore]
 fn test_nucleotide_count_counts_all() {
     check_dna("AGCTTTTCATTCTGACTGCAACGGGCAATATGTCTCTGTGTGGATTAAAAAAAGAGTGTCTGATAGCAGC",
               &[('A', 20), ('T', 21), ('C', 12), ('G', 17)]);
