@@ -1,14 +1,14 @@
 pub fn hex_to_int(hex: &str) -> Option<usize> {
-    let mut result: usize = 0;
-    let mut position: u32 = 0;
+    let mut result = 0;
+    let mut position = 0;
     for ch in hex.chars().rev() {
-        let value = match ch {
-            '0'...'9' => ch as u8 - 48, // produces 0-9
-            'A'...'F' => ch as u8 - 55, // produces 10-16
-            'a'...'f' => ch as u8 - 87, // produces 10-16
+        let value: usize = match ch {
+            '0'...'9' => ch as u8 - '0' as u8, // produces 0-9
+            'A'...'F' => ch as u8 - 'A' as u8, // produces 10-16
+            'a'...'f' => ch as u8 - 'a' as u8, // produces 10-16
             _ => return None
-        };
-        result += value as usize * (16_usize.pow(position));
+        } as usize;
+        result += value  * (16_usize.pow(position));
         position += 1;
     }
     Some(result)
