@@ -16,7 +16,10 @@ impl ChessPosition {
         if rank >= 8 || file >= 8 || rank < 0 || file < 0 {
             Err("Invalid Position")
         } else {
-            Ok(ChessPosition {rank: rank as u8, file: file as u8})
+            Ok(ChessPosition {
+                rank: rank as u8,
+                file: file as u8,
+            })
         }
     }
 }
@@ -27,10 +30,16 @@ pub struct Queen {
 
 impl Queen {
     pub fn new(position: ChessPosition) -> Queen {
-        Queen {position: position}
+        Queen { position: position }
     }
 
     pub fn can_attack(&self, other: &Queen) -> bool {
-        unimplemented!()
+        if self.position.rank == other.position.rank || self.position.file == other.position.file ||
+           (self.position.rank as i8 - other.position.rank as i8).abs() ==
+           (self.position.file as i8 - other.position.file as i8).abs() {
+            true
+        } else {
+            false
+        }
     }
 }
