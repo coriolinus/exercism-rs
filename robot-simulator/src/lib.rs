@@ -9,36 +9,74 @@ pub enum Direction {
     West,
 }
 
-pub struct Robot;
+pub struct Robot {
+    x: isize,
+    y: isize,
+    d: Direction,
+}
 
 impl Robot {
-    #[allow(unused_variables)]
     pub fn new(x: isize, y: isize, d: Direction) -> Self {
-        unimplemented!()
+        Robot { x: x, y: y, d: d }
     }
 
     pub fn turn_right(self) -> Self {
-        unimplemented!()
+        Robot {
+            d: match self.d {
+                Direction::North => Direction::East,
+                Direction::East => Direction::South,
+                Direction::South => Direction::West,
+                Direction::West => Direction::North,
+            },
+            ..self
+        }
     }
 
     pub fn turn_left(self) -> Self {
-        unimplemented!()
+        Robot {
+            d: match self.d {
+                Direction::North => Direction::West,
+                Direction::East => Direction::North,
+                Direction::South => Direction::East,
+                Direction::West => Direction::South,
+            },
+            ..self
+        }
     }
 
     pub fn advance(self) -> Self {
-        unimplemented!()
+        let (dx, dy) = match self.d {
+            Direction::North => (0, 1),
+            Direction::East => (1, 0),
+            Direction::South => (0, -1),
+            Direction::West => (-1, 0),
+        };
+        Robot {
+            x: self.x + dx,
+            y: self.y + dy,
+            ..self
+        }
     }
 
     #[allow(unused_variables)]
     pub fn instructions(self, instructions: &str) -> Self {
-        unimplemented!()
+        let mut follower = self;
+        for instruction in instructions.chars() {
+            follower = match instruction {
+                'L' => follower.turn_left(),
+                'R' => follower.turn_right(),
+                'A' => follower.advance(),
+                _ => follower,
+            };
+        }
+        follower
     }
 
     pub fn position(&self) -> (isize, isize) {
-        unimplemented!()
+        (self.x, self.y)
     }
 
     pub fn direction(&self) -> &Direction {
-        unimplemented!()
+        &self.d
     }
 }
