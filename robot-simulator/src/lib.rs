@@ -60,16 +60,12 @@ impl Robot {
 
     #[allow(unused_variables)]
     pub fn instructions(self, instructions: &str) -> Self {
-        let mut follower = self;
-        for instruction in instructions.chars() {
-            follower = match instruction {
-                'L' => follower.turn_left(),
-                'R' => follower.turn_right(),
-                'A' => follower.advance(),
-                _ => follower,
-            };
-        }
-        follower
+        instructions.chars().fold(self, |robot, instruction| match instruction {
+            'L' => robot.turn_left(),
+            'R' => robot.turn_right(),
+            'A' => robot.advance(),
+            _ => robot,
+        })
     }
 
     pub fn position(&self) -> (isize, isize) {
