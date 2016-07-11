@@ -13,7 +13,6 @@ fn empty_equals_empty() {
 }
 
 #[test]
-#[ignore]
 fn test_empty_is_a_sublist_of_anything() {
     assert_eq!(
         Comparison::Sublist,
@@ -22,7 +21,6 @@ fn test_empty_is_a_sublist_of_anything() {
 }
 
 #[test]
-#[ignore]
 fn test_anything_is_a_superlist_of_empty() {
     assert_eq!(
         Comparison::Superlist,
@@ -31,7 +29,6 @@ fn test_anything_is_a_superlist_of_empty() {
 }
 
 #[test]
-#[ignore]
 fn test_1_is_not_2() {
     assert_eq!(
         Comparison::Unequal,
@@ -40,7 +37,6 @@ fn test_1_is_not_2() {
 }
 
 #[test]
-#[ignore]
 fn test_compare_larger_equal_lists() {
     use std::iter::repeat;
 
@@ -53,7 +49,6 @@ fn test_compare_larger_equal_lists() {
 }
 
 #[test]
-#[ignore]
 fn test_sublist_at_start() {
     assert_eq!(
         Comparison::Sublist,
@@ -62,7 +57,6 @@ fn test_sublist_at_start() {
 }
 
 #[test]
-#[ignore]
 fn sublist_in_middle() {
     assert_eq!(
         Comparison::Sublist,
@@ -71,7 +65,6 @@ fn sublist_in_middle() {
 }
 
 #[test]
-#[ignore]
 fn sublist_at_end() {
     assert_eq!(
         Comparison::Sublist,
@@ -80,7 +73,6 @@ fn sublist_at_end() {
 }
 
 #[test]
-#[ignore]
 fn partially_matching_sublist_at_start() {
     assert_eq!(
         Comparison::Sublist,
@@ -89,7 +81,6 @@ fn partially_matching_sublist_at_start() {
 }
 
 #[test]
-#[ignore]
 fn sublist_early_in_huge_list() {
     let huge: Vec<u32> = (1..1000000).collect();
 
@@ -100,7 +91,6 @@ fn sublist_early_in_huge_list() {
 }
 
 #[test]
-#[ignore]
 fn huge_sublist_not_in_huge_list() {
     let v1: Vec<u64> = (10..1000001).collect();
     let v2: Vec<u64> = (1..1000000).collect();
@@ -112,7 +102,6 @@ fn huge_sublist_not_in_huge_list() {
 }
 
 #[test]
-#[ignore]
 fn superlist_at_start() {
     assert_eq!(
         Comparison::Superlist,
@@ -121,7 +110,6 @@ fn superlist_at_start() {
 }
 
 #[test]
-#[ignore]
 fn superlist_in_middle() {
     assert_eq!(
         Comparison::Superlist,
@@ -130,7 +118,6 @@ fn superlist_in_middle() {
 }
 
 #[test]
-#[ignore]
 fn superlist_at_end() {
     assert_eq!(
         Comparison::Superlist,
@@ -139,7 +126,6 @@ fn superlist_at_end() {
 }
 
 #[test]
-#[ignore]
 fn superlist_early_in_huge_list() {
     let huge: Vec<u32> = (1..1000000).collect();
 
@@ -150,7 +136,6 @@ fn superlist_early_in_huge_list() {
 }
 
 #[test]
-#[ignore]
 fn recurring_values_sublist() {
     assert_eq!(
         Comparison::Sublist,
@@ -162,7 +147,6 @@ fn recurring_values_sublist() {
 }
 
 #[test]
-#[ignore]
 fn recurring_values_unequal() {
     assert_eq!(
         Comparison::Unequal,
