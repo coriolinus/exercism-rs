@@ -27,13 +27,11 @@ fn is_not_allergic_to_anything() {
 }
 
 #[test]
-#[ignore]
 fn is_allergic_to_eggs() {
     assert_eq!(true, Allergies::new(1).is_allergic_to(&Allergen::Eggs));
 }
 
 #[test]
-#[ignore]
 fn is_allergic_to_egg_shellfish_and_strawberries() {
     let allergies = Allergies::new(5);
     assert_eq!(true, allergies.is_allergic_to(&Allergen::Eggs));
@@ -42,7 +40,6 @@ fn is_allergic_to_egg_shellfish_and_strawberries() {
 }
 
 #[test]
-#[ignore]
 fn no_allergies_at_all() {
     let expected: Vec<Allergen> = Vec::new();
     let allergies = Allergies::new(0).allergies();
@@ -51,7 +48,6 @@ fn no_allergies_at_all() {
 }
 
 #[test]
-#[ignore]
 fn allergic_to_just_eggs() {
     let expected = vec![Allergen::Eggs];
     let allergies = Allergies::new(1).allergies();
@@ -60,7 +56,6 @@ fn allergic_to_just_eggs() {
 }
 
 #[test]
-#[ignore]
 fn allergic_to_just_peanuts() {
     let expected = vec![Allergen::Peanuts];
     let allergies = Allergies::new(2).allergies();
@@ -69,7 +64,6 @@ fn allergic_to_just_peanuts() {
 }
 
 #[test]
-#[ignore]
 fn allergic_to_just_strawberries() {
     let expected = vec![Allergen::Strawberries];
     let allergies = Allergies::new(8).allergies();
@@ -78,7 +72,6 @@ fn allergic_to_just_strawberries() {
 }
 
 #[test]
-#[ignore]
 fn allergic_to_eggs_and_peanuts() {
     let expected = vec![Allergen::Eggs, Allergen::Peanuts];
     let allergies = Allergies::new(3).allergies();
@@ -87,7 +80,6 @@ fn allergic_to_eggs_and_peanuts() {
 }
 
 #[test]
-#[ignore]
 fn allergic_to_eggs_and_shellfish() {
     let expected = vec![Allergen::Eggs, Allergen::Shellfish];
     let allergies = Allergies::new(5).allergies();
@@ -96,7 +88,6 @@ fn allergic_to_eggs_and_shellfish() {
 }
 
 #[test]
-#[ignore]
 fn allergic_to_many_things() {
     let expected = vec![Allergen::Strawberries,
                         Allergen::Tomatoes,
@@ -109,7 +100,6 @@ fn allergic_to_many_things() {
 }
 
 #[test]
-#[ignore]
 fn allergic_to_everything() {
     let expected = vec![Allergen::Eggs,
                         Allergen::Peanuts,
@@ -125,7 +115,6 @@ fn allergic_to_everything() {
 }
 
 #[test]
-#[ignore]
 fn scores_over_255_do_not_trigger_false_positives() {
     let expected = vec![Allergen::Eggs,
                         Allergen::Shellfish,
