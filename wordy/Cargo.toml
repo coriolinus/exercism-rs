@@ -1,3 +1,6 @@
 [package]
 name = "wordy"
 version = "0.0.0"
+
+[dependencies]
+# num = "0.1.33"
