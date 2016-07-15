@@ -7,7 +7,7 @@
 ///
 /// Performance should be generally comparable to that of a BTreeSet,
 /// if a little slower, but should take somewhat less space.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct CustomSet<T> {
     items: Vec<T>,
 }
