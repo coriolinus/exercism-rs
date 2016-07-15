@@ -12,7 +12,9 @@ pub struct CustomSet<T> {
     items: Vec<T>,
 }
 
-impl<T> CustomSet<T> where T: PartialEq + Ord {
+impl<T> CustomSet<T>
+    where T: PartialEq + Ord
+{
     pub fn new(items: Vec<T>) -> CustomSet<T> {
         // uses FromIterator to add all items in their proper places
         items.into_iter().collect()
@@ -50,13 +52,15 @@ impl<T> CustomSet<T> where T: PartialEq + Ord {
     }
 }
 
-impl<T> CustomSet<T> where T: PartialEq + Ord + Clone {
+impl<T> CustomSet<T>
+    where T: PartialEq + Ord + Clone
+{
     pub fn intersection(&self, other: &CustomSet<T>) -> CustomSet<T> {
         self.iter().filter(|i| other.contains(&i)).cloned().collect()
     }
 
     pub fn difference(&self, other: &CustomSet<T>) -> CustomSet<T> {
-        self.iter().filter(|i| ! other.contains(&i)).cloned().collect()
+        self.iter().filter(|i| !other.contains(&i)).cloned().collect()
     }
 
     pub fn union(&self, other: &CustomSet<T>) -> CustomSet<T> {
@@ -76,8 +80,9 @@ impl<T> IntoIterator for CustomSet<T> {
 }
 
 impl<T> std::iter::FromIterator<T> for CustomSet<T>
-    where T: PartialEq + Ord {
-    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
+    where T: PartialEq + Ord
+{
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         iter.into_iter().fold(CustomSet { items: Vec::new() }, |mut ret, item| {
             ret.add(item);
             ret
