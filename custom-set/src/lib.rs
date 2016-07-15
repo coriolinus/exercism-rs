@@ -12,7 +12,7 @@ pub struct CustomSet<T> {
     items: Vec<T>,
 }
 
-impl<T> CustomSet<T> where T: PartialEq + PartialOrd {
+impl<T> CustomSet<T> where T: PartialEq + Ord {
     pub fn new(items: Vec<T>) -> CustomSet<T> {
         CustomSet { items: items }
     }
@@ -22,7 +22,7 @@ impl<T> CustomSet<T> where T: PartialEq + PartialOrd {
     }
 
     pub fn contains(&self, item: &T) -> bool {
-        unimplemented!()
+        self.items.binary_search(item).is_ok()
     }
 
     pub fn is_subset(&self, other: &CustomSet<T>) -> bool {
@@ -34,10 +34,14 @@ impl<T> CustomSet<T> where T: PartialEq + PartialOrd {
     }
 
     pub fn add(&mut self, item: T) {
-        if !self.contains(&item) {
-
+        if let Err(index) = self.items.binary_search(&item) {
+            // docs: if the value is not found then Err is returned,
+            // containing the index where a matching element could
+            // be inserted while maintaining sorted order.
+            //
+            // We don't do anything unless it's an Err
+            self.items.insert(index, item);
         }
-        unimplemented!()
     }
 
     pub fn iter(&self) -> std::slice::Iter<T> {
@@ -45,7 +49,7 @@ impl<T> CustomSet<T> where T: PartialEq + PartialOrd {
     }
 }
 
-impl<T> CustomSet<T> where T: PartialEq + PartialOrd + Clone {
+impl<T> CustomSet<T> where T: PartialEq + Ord + Clone {
     pub fn intersection(&self, other: &CustomSet<T>) -> CustomSet<T> {
         self.iter().filter(|i| other.contains(&i)).cloned().collect()
     }
@@ -71,7 +75,7 @@ impl<T> IntoIterator for CustomSet<T> {
 }
 
 impl<T> std::iter::FromIterator<T> for CustomSet<T>
-    where T: PartialEq + PartialOrd {
+    where T: PartialEq + Ord {
     fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
         iter.into_iter().fold(CustomSet::new(Vec::new()), |mut ret, item| {
             ret.add(item);
