@@ -12,14 +12,12 @@ pub struct CustomSet<T> {
     items: Vec<T>,
 }
 
-impl<T> CustomSet<T> where T: PartialEq + Ord + Sized {
+impl<T> CustomSet<T> where T: PartialEq + Ord {
     pub fn new(items: Vec<T>) -> CustomSet<T> {
         // uses FromIterator to add all items in their proper places
         items.into_iter().collect()
     }
-}
 
-impl<T> CustomSet<T> where T: PartialEq + Ord {
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
