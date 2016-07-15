@@ -6,17 +6,20 @@
 /// simply duplicating HashSet or BTreeSet.
 ///
 /// Performance should be generally comparable to that of a BTreeSet,
-/// if a little slower, but should take somewhat less space.
+/// if a little slower, but it should take somewhat less space than a HashSet
 #[derive(Clone, PartialEq, Debug)]
 pub struct CustomSet<T> {
     items: Vec<T>,
 }
 
-impl<T> CustomSet<T> where T: PartialEq + Ord {
+impl<T> CustomSet<T> where T: PartialEq + Ord + Sized {
     pub fn new(items: Vec<T>) -> CustomSet<T> {
-        CustomSet { items: items }
+        // uses FromIterator to add all items in their proper places
+        items.into_iter().collect()
     }
+}
 
+impl<T> CustomSet<T> where T: PartialEq + Ord {
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
@@ -77,7 +80,7 @@ impl<T> IntoIterator for CustomSet<T> {
 impl<T> std::iter::FromIterator<T> for CustomSet<T>
     where T: PartialEq + Ord {
     fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
-        iter.into_iter().fold(CustomSet::new(Vec::new()), |mut ret, item| {
+        iter.into_iter().fold(CustomSet { items: Vec::new() }, |mut ret, item| {
             ret.add(item);
             ret
         })
