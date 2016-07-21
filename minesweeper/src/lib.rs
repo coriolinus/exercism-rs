@@ -18,7 +18,7 @@ impl Tile {
     fn increment(self) -> Self {
         use Tile::*;
         match self {
-            Empty => Num(0),
+            Empty => Num(1),
             Mine => Mine,
             Num(n) => Num(n+1),
         }
