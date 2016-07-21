@@ -16,10 +16,18 @@ pub struct Robot {
 }
 
 impl Robot {
+    fn generate_name() -> String {
+        let az_range = 'A' as u8 .. 'Z' as u8;
+        let zeronine_range = '0' as u8 .. '9' as u8;
+        let mut rng = thread_rng();
+        sample(&mut rng, az_range, 2).iter()
+            .chain(&sample(&mut rng, zeronine_range, 3))
+            .map(|i| *i as char)
+            .collect()
+    }
+
     pub fn new() -> Robot {
-        let mut r = Robot {name: String::from("")};
-        r.reset_name();
-        r
+        Robot {name: Self::generate_name()}
     }
 
     pub fn name(&self) -> &str {
@@ -27,13 +35,6 @@ impl Robot {
     }
 
     pub fn reset_name(&mut self) {
-        let az_range = 'A' as u8 .. 'Z' as u8;
-        let zeronine_range = '0' as u8 .. '9' as u8;
-        let mut rng = thread_rng();
-        self.name = sample(&mut rng, az_range, 2).iter()
-            .chain(&sample(&mut rng, zeronine_range, 3))
-            .map(|i| *i as char)
-            .collect()
-
+        self.name = Self::generate_name()
     }
 }
