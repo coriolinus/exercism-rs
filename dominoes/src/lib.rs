@@ -72,7 +72,7 @@ pub fn chain(dominos: &Vec<Domino>) -> Option<Vec<Domino>> {
         }
         _ => {
             let first = dominos[0];
-            match chain_recursive(create_collection(&dominos[1..]), first.0, first.1) {
+            match chain_recursive(&mut create_collection(&dominos[1..]), first.0, first.1) {
                 None => None,
                 Some(mut chain) => {
                     chain.push(first); // and the first shall be last...
@@ -84,7 +84,7 @@ pub fn chain(dominos: &Vec<Domino>) -> Option<Vec<Domino>> {
 }
 
 /// Recursively attempt to add links to the chain
-fn chain_recursive(dominos: DominoCollection, start: usize, end: usize) -> Option<Vec<Domino>> {
+fn chain_recursive(dominos: &mut DominoCollection, start: usize, end: usize) -> Option<Vec<Domino>> {
     if dominos.is_empty() {
         if start == end {
             Some(Vec::new())
@@ -92,23 +92,19 @@ fn chain_recursive(dominos: DominoCollection, start: usize, end: usize) -> Optio
             None
         }
     } else {
-        match dominos.get(&end) {
-            None => None,
-            Some(dominos_list) => {
-                for d in dominos_list {
-                    let mut smaller_collection = dominos.clone();
-                    remove(&mut smaller_collection, &d);
-                    if let Some(recursed) = chain_recursive(smaller_collection, start, d.1) {
-                        return Some(
-                            recursed.into_iter().fold(vec![*d], |mut o, r| {
-                                o.push(r);
-                                o
-                            })
-                        )
-                    }
-                }
-                None
+        for d in dominos.get(&end).unwrap_or(&Vec::new()).clone() {
+            remove(dominos, &d);
+            if let Some(recursed) = chain_recursive(dominos, start, d.1) {
+                return Some(
+                    recursed.into_iter().fold(vec![d], |mut o, r| {
+                        o.push(r);
+                        o
+                    })
+                )
             }
+            insert(dominos, &d)
         }
+
+        None
     }
 }
