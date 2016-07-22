@@ -75,7 +75,7 @@ pub fn chain(dominos: &Vec<Domino>) -> Option<Vec<Domino>> {
             match chain_recursive(create_collection(&dominos[1..]), first.0, first.1) {
                 None => None,
                 Some(mut chain) => {
-                    chain.insert(0, first);
+                    chain.push(first); // and the first shall be last...
                     Some(chain)
                 }
             }
