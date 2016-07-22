@@ -3,7 +3,7 @@ use std::collections::HashMap;
 pub type Domino = (usize, usize);
 
 #[inline]
-fn reverse(domino: &Domino) -> Domino {
+fn reverse(domino: Domino) -> Domino {
     (domino.1, domino.0)
 }
 
@@ -11,10 +11,11 @@ type DominoCollection = HashMap<usize, Vec<Domino>>;
 
 fn create_collection(dominos: &[Domino]) -> DominoCollection {
     dominos.iter()
-        .fold(HashMap::with_capacity(dominos.len()), |mut output, domino| {
-            insert(&mut output, domino);
-            output
-        })
+        .fold(HashMap::with_capacity(dominos.len()),
+              |mut output, domino| {
+                  insert(&mut output, domino);
+                  output
+              })
 }
 
 /// Insert a domino into a collection twice: once per side.
@@ -22,39 +23,37 @@ fn create_collection(dominos: &[Domino]) -> DominoCollection {
 /// in position 0.
 fn insert(dominos: &mut DominoCollection, domino: &Domino) {
     dominos.entry(domino.0).or_insert(Vec::new()).push(domino.clone());
-    dominos.entry(domino.1).or_insert(Vec::new()).push(reverse(domino));
+    dominos.entry(domino.1).or_insert(Vec::new()).push(reverse(domino.clone()));
 }
 
 /// Remove a domino from a collection.
-fn remove(dominos: &mut DominoCollection, domino: &Domino) {
-    fn seek_and_remove(list: &mut Vec<Domino>, domino: &Domino) {
+fn remove(dominos: &mut DominoCollection, domino: Domino) {
+    fn seek_and_remove(list: &mut Vec<Domino>, domino: Domino) {
         let mut remove_n = None;
         for (i, d) in list.iter().enumerate() {
-            if d == domino {
+            if d == &domino {
                 remove_n = Some(i);
                 break;
             }
         }
-        list.swap_remove(remove_n.expect("Malformed DominoCollection didn't have an expected domino in a sublist"));
+        list.swap_remove(remove_n
+            .expect("Malformed DominoCollection didn't have an expected domino in a sublist"));
     }
 
-    let errmsg = "Malformed DominoCollection didn't contain expected value";
-    {
-        let first_list = dominos.get_mut(&domino.0)
-            .expect(errmsg);
-        seek_and_remove(first_list, domino);
-    }
-    if dominos.get(&domino.0).unwrap().is_empty() {
-        dominos.remove(&domino.0);
-    }
-    {
-        let second_list = dominos.get_mut(&domino.1)
-            .expect(errmsg);
-        seek_and_remove(second_list, &reverse(domino));
-    }
-    if dominos.get(&domino.1).unwrap().is_empty() {
-        dominos.remove(&domino.1);
-    }
+    let mut remove_by_key = |key, domino: Domino| {
+        {
+            let list = dominos.get_mut(&key)
+                .expect("Malformed DominoCollection didn't contain expected key");
+            seek_and_remove(list, domino);
+        }
+        if dominos.get(&key).unwrap().is_empty() {
+            dominos.remove(&key);
+        }
+    };
+
+
+    remove_by_key(domino.0, domino);
+    remove_by_key(domino.1, reverse(domino));
 }
 
 pub fn chain(dominos: &Vec<Domino>) -> Option<Vec<Domino>> {
@@ -75,7 +74,7 @@ pub fn chain(dominos: &Vec<Domino>) -> Option<Vec<Domino>> {
             match chain_recursive(&mut create_collection(&dominos[1..]), first.0, first.1) {
                 None => None,
                 Some(mut chain) => {
-                    chain.push(reverse(&first)); // and the first shall be last...
+                    chain.push(reverse(first)); // and the first shall be last...
                     Some(chain)
                 }
             }
@@ -84,7 +83,10 @@ pub fn chain(dominos: &Vec<Domino>) -> Option<Vec<Domino>> {
 }
 
 /// Recursively attempt to add links to the chain
-fn chain_recursive(dominos: &mut DominoCollection, start: usize, end: usize) -> Option<Vec<Domino>> {
+fn chain_recursive(dominos: &mut DominoCollection,
+                   start: usize,
+                   end: usize)
+                   -> Option<Vec<Domino>> {
     if dominos.is_empty() {
         if start == end {
             Some(Vec::new())
@@ -93,12 +95,12 @@ fn chain_recursive(dominos: &mut DominoCollection, start: usize, end: usize) -> 
         }
     } else {
         for d in dominos.get(&end).unwrap_or(&Vec::new()).clone() {
-            remove(dominos, &d);
+            remove(dominos, d);
             if let Some(mut recursed) = chain_recursive(dominos, start, d.1) {
                 return Some({
-                    recursed.push(reverse(&d));
+                    recursed.push(reverse(d));
                     recursed
-                })
+                });
             }
             insert(dominos, &d)
         }
