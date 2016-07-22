@@ -75,7 +75,7 @@ pub fn chain(dominos: &Vec<Domino>) -> Option<Vec<Domino>> {
             match chain_recursive(&mut create_collection(&dominos[1..]), first.0, first.1) {
                 None => None,
                 Some(mut chain) => {
-                    chain.push(first); // and the first shall be last...
+                    chain.push(reverse(&first)); // and the first shall be last...
                     Some(chain)
                 }
             }
@@ -94,13 +94,11 @@ fn chain_recursive(dominos: &mut DominoCollection, start: usize, end: usize) -> 
     } else {
         for d in dominos.get(&end).unwrap_or(&Vec::new()).clone() {
             remove(dominos, &d);
-            if let Some(recursed) = chain_recursive(dominos, start, d.1) {
-                return Some(
-                    recursed.into_iter().fold(vec![d], |mut o, r| {
-                        o.push(r);
-                        o
-                    })
-                )
+            if let Some(mut recursed) = chain_recursive(dominos, start, d.1) {
+                return Some({
+                    recursed.push(reverse(&d));
+                    recursed
+                })
             }
             insert(dominos, &d)
         }
