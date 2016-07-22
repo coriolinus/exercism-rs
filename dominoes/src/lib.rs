@@ -62,7 +62,7 @@ pub fn chain(dominos: &Vec<Domino>) -> Option<Vec<Domino>> {
     // this is an exhaustive algorithm, so any chain starting position should be as good
     // as any other.
     match dominos.len() {
-        0 => None,
+        0 => Some(Vec::new()),
         1 => {
             if dominos[0].0 == dominos[0].1 {
                 Some(dominos.clone())
@@ -72,7 +72,13 @@ pub fn chain(dominos: &Vec<Domino>) -> Option<Vec<Domino>> {
         }
         _ => {
             let first = dominos[0];
-            chain_recursive(create_collection(&dominos[1..]), first.0, first.1)
+            match chain_recursive(create_collection(&dominos[1..]), first.0, first.1) {
+                None => None,
+                Some(mut chain) => {
+                    chain.insert(0, first);
+                    Some(chain)
+                }
+            }
         }
     }
 }

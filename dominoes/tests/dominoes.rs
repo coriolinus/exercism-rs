@@ -81,21 +81,18 @@ fn empty_input_empty_output() {
 }
 
 #[test]
-#[ignore]
 fn singleton_input_singleton_output() {
     let input = vec!((1, 1));
     assert_correct(&input);
 }
 
 #[test]
-#[ignore]
 fn singleton_that_cant_be_chained() {
     let input = vec![(1, 2)];
     assert_eq!(dominoes::chain(&input), None);
 }
 
 #[test]
-#[ignore]
 fn no_repeat_numbers() {
     let input = vec!((1, 2), (3, 1), (2, 3));
     assert_correct(&input);
