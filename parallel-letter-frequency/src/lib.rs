@@ -22,22 +22,34 @@ pub fn frequency(items: &[&str], thread_count: usize) -> HashMap<char, usize> {
             let item_index = item_index.clone();
 
             threads.push(scope.spawn(move || {
-                // TODO: get a lock, count the letters of a line
-                // get a line and ensure no other thread can get it
-                let my_item_index = {
-                    let mut item_index = item_index.lock().unwrap();
-                    let out = item_index.clone();
-                    *item_index += 1;
-                    out
-                };
-                if my_item_index < items.len() {
-                    let line = items[my_item_index];
-                    // for each char, lock the shared map and increment the count
-                    for ch in line.chars() {
-                        *counts.lock().unwrap().entry(ch).or_insert(0) += 1;
+                // get a temporary lock here just to compare the value of item_index
+                while *item_index.lock().unwrap() < items.len() {
+                    // get a line by index and ensure no other thread can get it
+                    // note that this uses a second, separate lock: it's possible that
+                    // my_item_index ends up being higher than items.len() here, if other
+                    // threads have incremented it in between the two locks.
+                    // That's acceptable, though; in the event that we have an item index
+                    // out of range, we just end.
+                    let my_item_index = {
+                        let mut item_index = item_index.lock().unwrap();
+                        let out = item_index.clone();
+                        *item_index += 1;
+                        out
+                    };
+                    if my_item_index < items.len() {
+                        let line = items[my_item_index];
+                        // for each char, lock the shared map and increment the count
+                        for ch in line.chars() {
+                            if ch.is_alphabetic() {
+                                let ch = ch.to_lowercase().next().unwrap();
+                                *counts.lock()
+                                    .unwrap()
+                                    .entry(ch)
+                                    .or_insert(0) += 1;
+                            }
+                        }
                     }
                 }
-
             }));
         }
     });
