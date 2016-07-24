@@ -55,7 +55,6 @@ impl Forth {
     }
 
     fn eval_token(&mut self, token: &str) -> ForthResult {
-        println!("Evaluating token '{}' with stack {}", token, self.format_stack());
         let value = match token.to_uppercase().as_str() {
             token if NUMBER.is_match(token) => {
                 match i16::from_str(token) {
@@ -76,10 +75,13 @@ impl Forth {
                 try!(self.pop()) / dividend
             },
             "DUP" => *try!(self.stack.last().ok_or(Error::StackUnderflow)),
+            "DROP" => {
+                try!(self.pop());
+                return Ok(());
+            }
             _ => return Err(Error::InvalidWord),
         };
         self.stack.push(value);
-        println!("New stack: {}", self.format_stack());
         Ok(())
     }
 
