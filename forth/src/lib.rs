@@ -85,6 +85,12 @@ impl Forth {
                 self.stack.push(a);
                 b
             }
+            "OVER" => {
+                let a = try!(self.pop());
+                let b = *try!(self.stack.last().ok_or(Error::StackUnderflow));
+                self.stack.push(a);
+                b
+            }
             _ => return Err(Error::InvalidWord),
         };
         self.stack.push(value);

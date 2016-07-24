@@ -130,7 +130,6 @@ fn swap_error() {
 }
 
 #[test]
-#[ignore]
 fn over() {
     let mut f = Forth::new();
     f.eval("1 2 over");
@@ -138,7 +137,6 @@ fn over() {
 }
 
 #[test]
-#[ignore]
 fn over_with_three() {
     let mut f = Forth::new();
     f.eval("1 2 3 over");
@@ -146,7 +144,6 @@ fn over_with_three() {
 }
 
 #[test]
-#[ignore]
 fn over_error() {
     let mut f = Forth::new();
     assert_eq!(Err(Error::StackUnderflow), f.eval("1 over"));
