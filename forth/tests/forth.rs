@@ -39,42 +39,36 @@ fn basic_arithmetic_2() {
 }
 
 #[test]
-#[ignore]
 fn addition_error() {
     let mut f = Forth::new();
     assert_eq!(Err(Error::StackUnderflow), f.eval("+"));
 }
 
 #[test]
-#[ignore]
 fn subtraction_error() {
     let mut f = Forth::new();
     assert_eq!(Err(Error::StackUnderflow), f.eval("-"));
 }
 
 #[test]
-#[ignore]
 fn multiplication_error() {
     let mut f = Forth::new();
     assert_eq!(Err(Error::StackUnderflow), f.eval("*"));
 }
 
 #[test]
-#[ignore]
 fn division_error() {
     let mut f = Forth::new();
     assert_eq!(Err(Error::StackUnderflow), f.eval("/"));
 }
 
 #[test]
-#[ignore]
 fn division_by_zero() {
     let mut f = Forth::new();
     assert_eq!(Err(Error::DivisionByZero), f.eval("4 2 2 - /"));
 }
 
 #[test]
-#[ignore]
 fn dup() {
     let mut f = Forth::new();
     f.eval("1 DUP");
@@ -82,7 +76,6 @@ fn dup() {
 }
 
 #[test]
-#[ignore]
 fn dup_case_insensitive() {
     let mut f = Forth::new();
     f.eval("1 Dup");
@@ -90,7 +83,6 @@ fn dup_case_insensitive() {
 }
 
 #[test]
-#[ignore]
 fn dup_error() {
     let mut f = Forth::new();
     assert_eq!(Err(Error::StackUnderflow), f.eval("dup"));
