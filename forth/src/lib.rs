@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 pub type Value = i32;
 pub type ForthResult = Result<(), Error>;
 
@@ -19,10 +21,28 @@ impl Forth {
     }
 
     pub fn format_stack(&self) -> String {
-        self.stack.iter().fold(String::new(), |string, num| string + &num.to_string())
+        self.stack.iter().enumerate().fold(String::with_capacity(3 * self.stack.len()),
+                                           |string, (index, num)| {
+            string + &num.to_string() +
+            {
+                if index != self.stack.len() - 1 {
+                    " "
+                } else {
+                    ""
+                }
+            }
+        })
     }
 
     pub fn eval(&mut self, input: &str) -> ForthResult {
-        unimplemented!()
+        for token in input.split_whitespace() {
+            if token.chars().all(|c| c.is_numeric()) {
+                match i16::from_str(token) {
+                    Ok(value) => self.stack.push(value),
+                    Err(_) => return Err(Error::InvalidWord),
+                }
+            }
+        }
+        Ok(())
     }
 }
