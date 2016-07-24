@@ -25,7 +25,6 @@ fn non_word_characters_are_separators() {
 }
 
 #[test]
-#[ignore]
 fn basic_arithmetic_1() {
     let mut f = Forth::new();
     f.eval("1 2 + 4 -");
@@ -33,7 +32,6 @@ fn basic_arithmetic_1() {
 }
 
 #[test]
-#[ignore]
 fn basic_arithmetic_2() {
     let mut f = Forth::new();
     f.eval("2 4 * 3 /");
