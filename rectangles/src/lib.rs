@@ -108,13 +108,15 @@ fn trace(field: &Vec<Vec<Cell>>, initial_x: usize, initial_y: usize) -> usize {
     while queue.len() > 0 {
         let (direction, x, y) = queue.pop_front().unwrap();
         if let Some((next_x, next_y)) = advance(direction, x, y) {
+            let next_cell = field[next_y][next_x];
             if (next_x, next_y) == (initial_x, initial_y) {
                 output += 1;
-            } else if field[y][x] == Cell::Intersection {
+            } else if next_cell == Cell::Intersection {
                 // add both possible continuation directions to the queue
                 queue.push_back((direction, next_x, next_y));
                 queue.push_back((direction.next(), next_x, next_y));
-            } else if direction.is_continuation(field[y][x]) {
+            } else if direction.is_continuation(next_cell) {
+                // simply continue moving in the same direction
                 queue.push_back((direction, next_x, next_y));
             }
         }
