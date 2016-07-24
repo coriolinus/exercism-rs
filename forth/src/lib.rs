@@ -79,6 +79,12 @@ impl Forth {
                 try!(self.pop());
                 return Ok(());
             }
+            "SWAP" => {
+                let a = try!(self.pop());
+                let b = try!(self.pop());
+                self.stack.push(a);
+                b
+            }
             _ => return Err(Error::InvalidWord),
         };
         self.stack.push(value);
