@@ -101,23 +101,26 @@ fn trace(field: &Vec<Vec<Cell>>, initial_x: usize, initial_y: usize) -> usize {
     let advance = |direction: Direction, x, y| direction.advance(x, y, field[0].len(), field.len());
 
     let mut queue = VecDeque::with_capacity(1);
-    queue.push_back((Direction::default(), initial_x, initial_y));
+    // TTL initialized with 4: the number of corners in a rectangle
+    queue.push_back((Direction::default(), initial_x, initial_y, 4));
 
     let mut output = 0;
 
     while queue.len() > 0 {
-        let (direction, x, y) = queue.pop_front().unwrap();
+        let (direction, x, y, ttl) = queue.pop_front().unwrap();
         if let Some((next_x, next_y)) = advance(direction, x, y) {
             let next_cell = field[next_y][next_x];
             if (next_x, next_y) == (initial_x, initial_y) {
                 output += 1;
-            } else if next_cell == Cell::Intersection {
+            } else if next_cell == Cell::Intersection && ttl > 0 {
                 // add both possible continuation directions to the queue
-                queue.push_back((direction, next_x, next_y));
-                queue.push_back((direction.next(), next_x, next_y));
-            } else if direction.is_continuation(next_cell) {
+                // if we continue on in the same direction, we haven't bent, so
+                // TTL remains the same. If we bend, though, we reduce TTL by 1.
+                queue.push_back((direction, next_x, next_y, ttl));
+                queue.push_back((direction.next(), next_x, next_y, ttl - 1));
+            } else if direction.is_continuation(next_cell) && ttl > 0 {
                 // simply continue moving in the same direction
-                queue.push_back((direction, next_x, next_y));
+                queue.push_back((direction, next_x, next_y, ttl));
             }
         }
     }
