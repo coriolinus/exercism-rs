@@ -35,10 +35,21 @@ impl Forth {
     }
 
     pub fn eval(&mut self, input: &str) -> ForthResult {
-        for token in input.split_whitespace() {
+        for mut token in input.split_whitespace() {
+            let negative = token.starts_with('-');
+            if negative {
+                token = &token[1..]
+            }
             if token.chars().all(|c| c.is_numeric()) {
                 match i16::from_str(token) {
-                    Ok(value) => self.stack.push(value),
+                    Ok(value) => {
+                        self.stack.push(value *
+                                        if negative {
+                            -1
+                        } else {
+                            1
+                        })
+                    }
                     Err(_) => return Err(Error::InvalidWord),
                 }
             }

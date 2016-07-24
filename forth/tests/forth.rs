@@ -10,7 +10,6 @@ fn no_input_no_stack() {
 }
 
 #[test]
-#[ignore]
 fn numbers_just_get_pushed_onto_the_stack() {
     let mut f = Forth::new();
     f.eval("1 2 3 4 5 -1");
@@ -46,50 +45,35 @@ fn basic_arithmetic_2() {
 #[ignore]
 fn addition_error() {
     let mut f = Forth::new();
-    assert_eq!(
-        Err(Error::StackUnderflow),
-        f.eval("+")
-    );
+    assert_eq!(Err(Error::StackUnderflow), f.eval("+"));
 }
 
 #[test]
 #[ignore]
 fn subtraction_error() {
     let mut f = Forth::new();
-    assert_eq!(
-        Err(Error::StackUnderflow),
-        f.eval("-")
-    );
+    assert_eq!(Err(Error::StackUnderflow), f.eval("-"));
 }
 
 #[test]
 #[ignore]
 fn multiplication_error() {
     let mut f = Forth::new();
-    assert_eq!(
-        Err(Error::StackUnderflow),
-        f.eval("*")
-    );
+    assert_eq!(Err(Error::StackUnderflow), f.eval("*"));
 }
 
 #[test]
 #[ignore]
 fn division_error() {
     let mut f = Forth::new();
-    assert_eq!(
-        Err(Error::StackUnderflow),
-        f.eval("/")
-    );
+    assert_eq!(Err(Error::StackUnderflow), f.eval("/"));
 }
 
 #[test]
 #[ignore]
 fn division_by_zero() {
     let mut f = Forth::new();
-    assert_eq!(
-        Err(Error::DivisionByZero),
-        f.eval("4 2 2 - /")
-    );
+    assert_eq!(Err(Error::DivisionByZero), f.eval("4 2 2 - /"));
 }
 
 #[test]
@@ -112,10 +96,7 @@ fn dup_case_insensitive() {
 #[ignore]
 fn dup_error() {
     let mut f = Forth::new();
-    assert_eq!(
-        Err(Error::StackUnderflow),
-        f.eval("dup")
-    );
+    assert_eq!(Err(Error::StackUnderflow), f.eval("dup"));
 }
 
 #[test]
@@ -138,10 +119,7 @@ fn drop_with_two() {
 #[ignore]
 fn drop_error() {
     let mut f = Forth::new();
-    assert_eq!(
-        Err(Error::StackUnderflow),
-        f.eval("drop")
-    );
+    assert_eq!(Err(Error::StackUnderflow), f.eval("drop"));
 }
 
 #[test]
@@ -164,14 +142,8 @@ fn swap_with_three() {
 #[ignore]
 fn swap_error() {
     let mut f = Forth::new();
-    assert_eq!(
-        Err(Error::StackUnderflow),
-        f.eval("1 swap")
-    );
-    assert_eq!(
-        Err(Error::StackUnderflow),
-        f.eval("swap")
-    );
+    assert_eq!(Err(Error::StackUnderflow), f.eval("1 swap"));
+    assert_eq!(Err(Error::StackUnderflow), f.eval("swap"));
 }
 
 #[test]
@@ -194,14 +166,8 @@ fn over_with_three() {
 #[ignore]
 fn over_error() {
     let mut f = Forth::new();
-    assert_eq!(
-        Err(Error::StackUnderflow),
-        f.eval("1 over")
-    );
-    assert_eq!(
-        Err(Error::StackUnderflow),
-        f.eval("over")
-    );
+    assert_eq!(Err(Error::StackUnderflow), f.eval("1 over"));
+    assert_eq!(Err(Error::StackUnderflow), f.eval("over"));
 }
 
 #[test]
@@ -244,36 +210,21 @@ fn defining_words_with_odd_characters() {
 #[ignore]
 fn defining_a_number() {
     let mut f = Forth::new();
-    assert_eq!(
-        Err(Error::InvalidWord),
-        f.eval(": 1 2 ;")
-    );
+    assert_eq!(Err(Error::InvalidWord), f.eval(": 1 2 ;"));
 }
 
 #[test]
 #[ignore]
 fn malformed_word_definition() {
     let mut f = Forth::new();
-    assert_eq!(
-        Err(Error::InvalidWord),
-        f.eval(":")
-    );
-    assert_eq!(
-        Err(Error::InvalidWord),
-        f.eval(": foo")
-    );
-    assert_eq!(
-        Err(Error::InvalidWord),
-        f.eval(": foo 1")
-    );
+    assert_eq!(Err(Error::InvalidWord), f.eval(":"));
+    assert_eq!(Err(Error::InvalidWord), f.eval(": foo"));
+    assert_eq!(Err(Error::InvalidWord), f.eval(": foo 1"));
 }
 
 #[test]
 #[ignore]
 fn calling_non_existing_word() {
     let mut f = Forth::new();
-    assert_eq!(
-        Err(Error::UnknownWord),
-        f.eval("1 foo")
-    );
+    assert_eq!(Err(Error::UnknownWord), f.eval("1 foo"));
 }
