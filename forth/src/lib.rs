@@ -1,4 +1,14 @@
+#[macro_use]
+extern crate lazy_static;
+extern crate regex;
+
+use regex::Regex;
 use std::str::FromStr;
+
+lazy_static! {
+    static ref NON_WORD: Regex = Regex::new(r"[^\w-:;]+").unwrap();
+    static ref NUMBER: Regex = Regex::new(r"-?\d+").unwrap();
+}
 
 pub type Value = i32;
 pub type ForthResult = Result<(), Error>;
@@ -35,21 +45,13 @@ impl Forth {
     }
 
     pub fn eval(&mut self, input: &str) -> ForthResult {
-        for mut token in input.split_whitespace() {
-            let negative = token.starts_with('-');
-            if negative {
-                token = &token[1..]
-            }
-            if token.chars().all(|c| c.is_numeric()) {
+        // can't tokenize with a simple input.split_whitespace() because
+        // the chars \u{0} and \u{1} from the test case aren't in the
+        // Unicode `White_Space` class
+        for token in NON_WORD.split(input) {
+            if NUMBER.is_match(token) {
                 match i16::from_str(token) {
-                    Ok(value) => {
-                        self.stack.push(value *
-                                        if negative {
-                            -1
-                        } else {
-                            1
-                        })
-                    }
+                    Ok(value) => self.stack.push(value),
                     Err(_) => return Err(Error::InvalidWord),
                 }
             }
