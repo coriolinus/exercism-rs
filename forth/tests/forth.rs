@@ -151,7 +151,6 @@ fn over_error() {
 }
 
 #[test]
-#[ignore]
 fn defining_a_new_word() {
     let mut f = Forth::new();
     f.eval(": CoUnT 1 2 3 ;");
@@ -160,7 +159,6 @@ fn defining_a_new_word() {
 }
 
 #[test]
-#[ignore]
 fn redefining_an_existing_word() {
     let mut f = Forth::new();
     f.eval(": foo dup ;");
@@ -170,8 +168,13 @@ fn redefining_an_existing_word() {
 }
 
 #[test]
-#[ignore]
 fn redefining_an_existing_built_in_word() {
+    // WTF!? Why is this desired behavior?
+    // I will reluctantly implement this, but this kind
+    // of thing is both bad and dumb.
+    // This behavior will never be a good idea.
+    // You can't get the original keyword behavior back,
+    // given the language as specified.
     let mut f = Forth::new();
     f.eval(": swap dup ;");
     f.eval("1 swap");
@@ -179,22 +182,25 @@ fn redefining_an_existing_built_in_word() {
 }
 
 #[test]
-#[ignore]
 fn defining_words_with_odd_characters() {
+    // This is also a bad test, as the README clearly states:
+    //     To keep things simple the only data type you need to
+    //     support is signed integers of at least 16 bits size.
+    // i16::MAX == 32_767. The result of that eval when the fundamental
+    // data type is i16 is, correctly, Err(Error::InvalidWord).
+    // Too bad it's ignored.
     let mut f = Forth::new();
     f.eval(": € 220371 ; €");
     assert_eq!("220371", f.format_stack());
 }
 
 #[test]
-#[ignore]
 fn defining_a_number() {
     let mut f = Forth::new();
     assert_eq!(Err(Error::InvalidWord), f.eval(": 1 2 ;"));
 }
 
 #[test]
-#[ignore]
 fn malformed_word_definition() {
     let mut f = Forth::new();
     assert_eq!(Err(Error::InvalidWord), f.eval(":"));
@@ -203,7 +209,6 @@ fn malformed_word_definition() {
 }
 
 #[test]
-#[ignore]
 fn calling_non_existing_word() {
     let mut f = Forth::new();
     assert_eq!(Err(Error::UnknownWord), f.eval("1 foo"));
