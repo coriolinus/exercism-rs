@@ -55,17 +55,7 @@ impl Forth {
     }
 
     pub fn format_stack(&self) -> String {
-        self.stack.iter().enumerate().fold(String::with_capacity(3 * self.stack.len()),
-                                           |string, (index, num)| {
-            string + &num.to_string() +
-            {
-                if index != self.stack.len() - 1 {
-                    " "
-                } else {
-                    ""
-                }
-            }
-        })
+        self.stack.iter().map(i32::to_string).collect::<Vec<_>>().join(" ")
     }
 
     pub fn eval(&mut self, input: &str) -> ForthResult {
