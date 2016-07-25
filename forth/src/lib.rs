@@ -12,7 +12,8 @@ lazy_static! {
     static ref NUMBER: Regex = Regex::new(r"-?\d+").unwrap();
     static ref KEYWORDS: HashSet<String> = {
         let mut hs = HashSet::with_capacity(10);
-        for kw in vec![":" , ";" , "+" , "*" , "-" , "/" , "DUP" , "DROP" , "SWAP" , "OVER"] {
+        // nope, actual keywords aren't protected in Forth, apparently
+        for kw in vec![":", ";", "+", "*", "-", "/"] {
             hs.insert(kw.to_string());
         }
         hs.shrink_to_fit();
@@ -75,15 +76,13 @@ impl Forth {
             try!(self.eval_token(token));
         }
         if self.state == State::Normal {
-        Ok(())
-    } else {
-        Err(Error::InvalidWord)
-    }
+            Ok(())
+        } else {
+            Err(Error::InvalidWord)
+        }
     }
 
     fn eval_token(&mut self, token: &str) -> ForthResult {
-        println!("Processing token '{}'...", token);
-
         // Sharp-eyed readers will say "Wait a second! You're cloning a type, here,
         // which might contain a String! Isn't that potentially expensive?"
         //
@@ -124,12 +123,12 @@ impl Forth {
                 return Ok(());
             }
             (State::CollectWordInstructions(_), ";") => {
-                println!("Returning to normal state");
+
                 self.state = State::Normal;
                 return Ok(());
             }
             (State::CollectWordInstructions(word), token) => {
-                println!("Attempting to add token '{}' to word '{}'", token, word);
+
                 self.words.get_mut((*word).as_str()).unwrap().push(token.to_string());
                 return Ok(());
             }
@@ -149,7 +148,19 @@ impl Forth {
                     return Err(Error::DivisionByZero);
                 }
                 try!(self.pop()) / dividend
-            },
+            }
+            // look for user-defined words before falling back on builtins
+            (_, word) if self.words.get(word).is_some() => {
+                // we have to clone the list of instructions, because as far as the
+                // borrow checker knows, we could define new instructions within
+                // that list, or (more relevantly) modify or overwrite the current
+                // instruction list. Cloning it ensures that the list we're iterating
+                // over doesn't change.
+                for instruction in try!(self.words.get(word).ok_or(Error::UnknownWord)).clone() {
+                    try!(self.eval_token(&instruction));
+                }
+                return Ok(());
+            }
             // fundamental operations
             (_, "DUP") => *try!(self.last()),
             (_, "DROP") => {
@@ -168,15 +179,8 @@ impl Forth {
                 self.stack.push(a);
                 b
             }
-            // look for user-defined words only if all else fails
-            (_, word) => {
-                println!("Looking for word {}", word);
-                println!("Known words: {:?}", self.words.keys().cloned().collect::<Vec<_>>());
-                for instruction in try!(self.words.get(word).ok_or(Error::UnknownWord)).clone() {
-                    try!(self.eval_token(&instruction));
-                }
-                return Ok(());
-            },
+            // when all else fails, give up
+            (_, _) => return Err(Error::UnknownWord),
         };
         self.stack.push(value);
         Ok(())
