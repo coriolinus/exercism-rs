@@ -25,7 +25,7 @@ pub type Value = i32;
 pub type ForthResult = Result<(), Error>;
 
 pub struct Forth {
-    stack: Vec<i32>,
+    stack: Vec<Value>,
     state: State,
     words: HashMap<String, Vec<String>>,
 }
@@ -55,7 +55,7 @@ impl Forth {
     }
 
     pub fn format_stack(&self) -> String {
-        self.stack.iter().map(i32::to_string).collect::<Vec<_>>().join(" ")
+        self.stack.iter().map(Value::to_string).collect::<Vec<_>>().join(" ")
     }
 
     pub fn eval(&mut self, input: &str) -> ForthResult {
@@ -125,7 +125,7 @@ impl Forth {
             // all states from here on are State::Normal with a regular token
             // numbers and arithmetic
             (_, token) if NUMBER.is_match(token) => {
-                try!(i32::from_str(token).map_err(|_| Error::InvalidWord))
+                try!(Value::from_str(token).map_err(|_| Error::InvalidWord))
             }
             // Can't wait for the ? operator
             // to make this next section a little prettier
@@ -176,11 +176,11 @@ impl Forth {
         Ok(())
     }
 
-    fn pop(&mut self) -> Result<i32, Error> {
+    fn pop(&mut self) -> Result<Value, Error> {
         self.stack.pop().ok_or(Error::StackUnderflow)
     }
 
-    fn last(&self) -> Result<&i32, Error> {
+    fn last(&self) -> Result<&Value, Error> {
         self.stack.last().ok_or(Error::StackUnderflow)
     }
 }
