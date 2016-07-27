@@ -15,12 +15,10 @@ pub struct CircularBuffer<T> {
     write_index: usize,
 }
 
-impl<T> CircularBuffer<T>
-    where T: Clone
-{
+impl<T> CircularBuffer<T> {
     pub fn new(size: usize) -> CircularBuffer<T> {
         CircularBuffer {
-            items: vec![None; size],
+            items: none_vec(size),
             read_index: 0,
             write_index: 0,
         }
@@ -68,7 +66,7 @@ impl<T> CircularBuffer<T>
 
     /// Remove all items from the buffer
     pub fn clear(&mut self) {
-        self.items = vec![None; self.items.len()];
+        self.items = none_vec(self.items.len());
         self.read_index = 0;
         self.write_index = 0;
     }
@@ -82,6 +80,14 @@ impl<T> CircularBuffer<T>
             Ok(())
         }
     }
+}
+
+fn none_vec<T>(size: usize) -> Vec<Option<T>> {
+    let mut v = Vec::with_capacity(size);
+    for _ in 0..size {
+        v.push(None);
+    }
+    v
 }
 
 /// Return the value of the specified index, and then increment it.
