@@ -38,7 +38,7 @@ pub enum Error {
     InvalidWord,
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 enum State {
     Normal,
     GetWord,
