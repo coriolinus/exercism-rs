@@ -1,43 +1,95 @@
+use std::mem;
+
 pub type CBError<T> = Result<T, Error>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
     EmptyBuffer,
     FullBuffer,
+    ZeroCapacity,
 }
 
 pub struct CircularBuffer<T> {
     items: Vec<Option<T>>,
-    index: usize,
+    read_index: usize,
+    write_index: usize,
 }
 
-impl<T> CircularBuffer<T> where T: Clone {
+impl<T> CircularBuffer<T>
+    where T: Clone
+{
     pub fn new(size: usize) -> CircularBuffer<T> {
         CircularBuffer {
             items: vec![None; size],
-            index: 0,
+            read_index: 0,
+            write_index: 0,
         }
     }
 
-    /// Remove and return the item at the index; increment the index
-    pub fn read(&self) -> CBError<T> {
-        unimplemented!()
+    /// Remove and return the first item.
+    pub fn read(&mut self) -> CBError<T> {
+        try!(self.raise_on_len_0());
+
+        // it's only when doing data-structures stuff like this that the ++ operator makes sense
+        if self.items[self.read_index].is_some() {
+            let index = and_increment(&mut self.read_index, self.items.len());
+            Ok(mem::replace(&mut self.items[index], None).unwrap())
+        } else {
+            Err(Error::EmptyBuffer)
+        }
     }
 
     /// Insert an item, raising an error if the buffer is full.
-    /// Increment the index.
     pub fn write(&mut self, item: T) -> CBError<()> {
-        unimplemented!()
+        try!(self.raise_on_len_0());
+
+        if self.items[self.write_index].is_none() {
+            let index = and_increment(&mut self.write_index, self.items.len());
+            self.items[index] = Some(item);
+            Ok(())
+        } else {
+            Err(Error::FullBuffer)
+        }
     }
 
-    /// Insert an item. If there is already an item at this index,
-    /// return the former item and overwrite. Increment the index.
+    /// Insert an item even if the buffer is full, overwriting from the beginning.
     pub fn overwrite(&mut self, item: T) -> Option<T> {
-        unimplemented!()
+        if self.raise_on_len_0().is_err() {
+            return None;
+        }
+
+        // increment the read index also if we're about to overwrite
+        if self.items[self.write_index].is_some() {
+            self.read_index += 1;
+        }
+        let index = and_increment(&mut self.write_index, self.items.len());
+        mem::replace(&mut self.items[index], Some(item))
     }
 
     /// Remove all items from the buffer
     pub fn clear(&mut self) {
-        unimplemented!()
+        self.items = vec![None; self.items.len()];
+        self.read_index = 0;
+        self.write_index = 0;
     }
+
+    /// Life is easier if we can assume that the length is not 0,
+    /// so just try!() this at the beginning of our functions.
+    fn raise_on_len_0(&self) -> CBError<()> {
+        if self.items.len() == 0 {
+            Err(Error::ZeroCapacity)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+/// Return the value of the specified index, and then increment it.
+fn and_increment(index: &mut usize, bound: usize) -> usize {
+    let old_value = *index;
+    *index += 1;
+    if *index >= bound {
+        *index = 0;
+    }
+    old_value
 }
