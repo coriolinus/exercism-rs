@@ -23,17 +23,17 @@ impl Brackets {
                 '[' => bracket_stack.push(Square),
                 '{' => bracket_stack.push(Curly),
                 ')' => {
-                    if bracket_stack.pop().unwrap() != Parenthesis {
+                    if bracket_stack.pop() != Some(Parenthesis) {
                         return false;
                     }
                 }
                 ']' => {
-                    if bracket_stack.pop().unwrap() != Square {
+                    if bracket_stack.pop() != Some(Square) {
                         return false;
                     }
                 }
                 '}' => {
-                    if bracket_stack.pop().unwrap() != Curly {
+                    if bracket_stack.pop() != Some(Curly) {
                         return false;
                     }
                 }
