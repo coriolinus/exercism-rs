@@ -28,8 +28,39 @@
 ///  * The empty slice ( "[]" ) is equal to the number 0.
 ///  * Never output leading 0 digits. However, your function must be able to
 ///     process input with leading 0 digits.
-///
-#[allow(unused_variables)]
 pub fn convert(number: &[u32], from_base: u32, to_base: u32) -> Result<Vec<u32>, ()> {
-    unimplemented!()
+    let number = try!(from_base_n(number, from_base));
+    Ok(to_base_n(number, to_base))
+}
+
+fn from_base_n(number: &[u32], base: u32) -> Result<usize, ()> {
+    let mut num = 0;
+    for (exp, digit) in number.iter().rev().enumerate() {
+        if *digit >= base {
+            return Err(());
+        }
+        num += (*digit * base.pow(exp as u32)) as usize
+    }
+    Ok(num)
+}
+
+fn to_base_n(mut number: usize, base: u32) -> Vec<u32> {
+    // First, we find the minimum exponentiation of base which is greater than number.
+    // This tells us what exponent to start with.
+    let mut exponent = 0;
+    while number >= (base as usize).pow(exponent) {
+        exponent += 1;
+    }
+
+    let mut digits = Vec::with_capacity(exponent as usize + 1);
+
+    // Then, count down the exponents, adding the appropriate digit for each.
+    for exp in (0..exponent).rev() {
+        // the appropriate digit can be derived by dividing the number by the positional value
+        digits.push((number / (base as usize).pow(exp)) as u32);
+        // now keep the remainder
+        number = number % (base as usize).pow(exp);
+    }
+
+    digits
 }
