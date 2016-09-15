@@ -1,3 +1,9 @@
+#[derive(Debug, PartialEq)]
+pub enum ConversionError {
+    BaseTooLow,
+    DigitTooHighForBase,
+}
+
 ///
 /// Convert a number between two bases.
 ///
@@ -28,16 +34,20 @@
 ///  * The empty slice ( "[]" ) is equal to the number 0.
 ///  * Never output leading 0 digits. However, your function must be able to
 ///     process input with leading 0 digits.
-pub fn convert(number: &[u32], from_base: u32, to_base: u32) -> Result<Vec<u32>, ()> {
-    let number = try!(from_base_n(number, from_base));
-    Ok(to_base_n(number, to_base))
+pub fn convert(number: &[u32], from_base: u32, to_base: u32) -> Result<Vec<u32>, ConversionError> {
+    if from_base <= 1 || to_base <= 1 {
+        Err(ConversionError::BaseTooLow)
+    } else {
+        let number = try!(from_base_n(number, from_base));
+        Ok(to_base_n(number, to_base))
+    }
 }
 
-fn from_base_n(number: &[u32], base: u32) -> Result<usize, ()> {
+fn from_base_n(number: &[u32], base: u32) -> Result<usize, ConversionError> {
     let mut num = 0;
     for (exp, digit) in number.iter().rev().enumerate() {
         if *digit >= base {
-            return Err(());
+            return Err(ConversionError::DigitTooHighForBase);
         }
         num += (*digit * base.pow(exp as u32)) as usize
     }
