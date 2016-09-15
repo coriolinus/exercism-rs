@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::iter::FromIterator;
 
 // Because these are passed without & to some functions,
 // it will probably be necessary for these two types to be Copy.
@@ -11,6 +12,8 @@ pub struct Reactor<T> {
     next_c_id: CellID,
     next_cb_id: CallbackID,
     input_cells: HashMap<CellID, T>,
+    callbacks: HashMap<CallbackID, Box<Fn(&[T]) -> T>>,
+    compute_cells: HashMap<CellID, (Vec<CellID>, CallbackID)>,
 }
 
 // You are guaranteed that Reactor will only be tested against types that are Copy + PartialEq.
@@ -32,6 +35,8 @@ impl<T: Copy + PartialEq> Reactor<T> {
             next_c_id: 0,
             next_cb_id: 0,
             input_cells: HashMap::new(),
+            callbacks: HashMap::new(),
+            compute_cells: HashMap::new(),
         }
     }
 
@@ -53,11 +58,23 @@ impl<T: Copy + PartialEq> Reactor<T> {
     // Notice that there is no way to *remove* a cell.
     // This means that you may assume, without checking, that if the dependencies exist at creation
     // time they will continue to exist as long as the Reactor exists.
-    pub fn create_compute<F: Fn(&[T]) -> T>(&mut self,
-                                            dependencies: &[CellID],
-                                            compute_func: F)
-                                            -> Result<CellID, ()> {
-        unimplemented!()
+    pub fn create_compute<F: 'static + Fn(&[T]) -> T>(&mut self,
+                                                      dependencies: &[CellID],
+                                                      compute_func: F)
+                                                      -> Result<CellID, ()> {
+
+        if !dependencies.iter().all(|depend_id| {
+            self.input_cells.contains_key(depend_id) || self.compute_cells.contains_key(depend_id)
+        }) {
+            // not all dependencies exist
+            return Err(());
+        }
+
+        let cbid = self.next_callback_id();
+        self.callbacks.insert(cbid, Box::new(compute_func));
+        let cid = self.next_cell_id();
+        self.compute_cells.insert(cid, (Vec::from_iter(dependencies.iter().cloned()), cbid));
+        Ok(cid)
     }
 
     // Retrieves the current value of the cell, or None if the cell does not exist.
@@ -71,9 +88,35 @@ impl<T: Copy + PartialEq> Reactor<T> {
         if self.input_cells.contains_key(&id) {
             // it's ok to call cloned because all T are Copy
             self.input_cells.get(&id).cloned()
+        } else if self.compute_cells.contains_key(&id) {
+            let &(ref dependencies, callback_id) = self.compute_cells.get(&id).unwrap();
+
+            // OK, this is going to take a little explaining. Starting from the top:
+            // 1. We iterate through each dependency in our dependencies list, collecting
+            //    them into an Option<Vec<T>>.
+            dependencies.iter()
+                .map(|dependency| self.value(*dependency))
+                .collect::<Option<Vec<_>>>()
+                // 2. Assuming all the dependencies existed, we now have a Some(Vec<T>)
+                //    in hand. We label that as `d_values`, the values of each of our
+                //    dependencies.
+                .and_then(|d_values| {
+                    // 3. Since we're in a new context, we can now start a new line of
+                    //    execution. We attempt to get the relevant callback from our table.
+                    //    Assuming it exists, we can use it to generate a callback by
+                    //    simply calling it with d_values.
+                    self.callbacks
+                        .get(&callback_id)
+                        .map(|callback| callback(&d_values))
+                })
+            // If at any point in the preceeding we encountered None, meaning that an
+            // individual dependency returned None when we tried to get its value, or
+            // a callback didn't exist, that None propagates upward here. We end up
+            // not having to unwrap _anything_, which is a good property to have.
+
+
         } else {
-            // FIXME: compute value cells here
-            unimplemented!()
+            None
         }
     }
 
