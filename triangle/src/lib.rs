@@ -12,7 +12,7 @@ pub struct Triangle<T> {
 }
 
 impl<T> Triangle<T>
-    where T: Clone + PartialEq + Ord + Zero
+    where T: Clone + ::std::fmt::Debug + Ord + PartialEq + Zero
 {
     /// True if the longest side is shorter than the sum of the other two sides
     pub fn is_possible_triangle(sides: &mut [T; 3]) -> bool {
@@ -30,6 +30,14 @@ impl<T> Triangle<T>
         }
     }
 
+    pub fn document(&self) {
+        println!("Sides: {:?}", self.sides);
+        println!(" Eq. Sides:   {}", self.count_equal_sides());
+        println!(" Equilateral: {}", self.is_equilateral());
+        println!(" Isosceles:   {}", self.is_isosceles());
+        println!(" Scalene:     {}", self.is_scalene());
+    }
+
     /// Counts how many sides are of equal length
     fn count_equal_sides(&self) -> u8 {
         let mut equals = 0;
@@ -43,17 +51,21 @@ impl<T> Triangle<T>
         equals
     }
 
-    /// True when two sides have the same length
+    /// True when exactly two sides have the same length.
+    ///
+    /// This isn't strictly mathematically right--a triangle
+    /// can be both isosceles and equilateral--but it's what
+    /// the tests expect.
     pub fn is_isosceles(&self) -> bool {
-        self.count_equal_sides() >= 2
+        self.count_equal_sides() == 1
     }
 
-    /// True when all three sides have unique lengths
+    /// True when all three sides have unique lengths.
     pub fn is_scalene(&self) -> bool {
         self.count_equal_sides() == 0
     }
 
-    /// True when all three sides have the same length
+    /// True when all three sides have the same length.
     pub fn is_equilateral(&self) -> bool {
         self.count_equal_sides() == 3
     }
