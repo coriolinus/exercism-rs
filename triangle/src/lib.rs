@@ -12,11 +12,13 @@ pub struct Triangle<T> {
 }
 
 impl<T> Triangle<T>
-    where T: Clone + ::std::fmt::Debug + Ord + PartialEq + Zero
+    where T: Clone + PartialOrd + Zero
 {
     /// True if the longest side is shorter than the sum of the other two sides
     pub fn is_possible_triangle(sides: &mut [T; 3]) -> bool {
-        sides.sort();
+        // not a huge fan of the fact that we can't just `.sort()` floats,
+        // but I suppose it can't be helped.
+        sides.sort_by(|a, b| a.partial_cmp(b).unwrap_or(::std::cmp::Ordering::Less));
         sides[0].clone() + sides[1].clone() >= *&sides[2]
     }
 
@@ -30,13 +32,6 @@ impl<T> Triangle<T>
         }
     }
 
-    pub fn document(&self) {
-        println!("Sides: {:?}", self.sides);
-        println!(" Eq. Sides:   {}", self.count_equal_sides());
-        println!(" Equilateral: {}", self.is_equilateral());
-        println!(" Isosceles:   {}", self.is_isosceles());
-        println!(" Scalene:     {}", self.is_scalene());
-    }
 
     /// Counts how many sides are of equal length
     fn count_equal_sides(&self) -> u8 {
@@ -68,5 +63,17 @@ impl<T> Triangle<T>
     /// True when all three sides have the same length.
     pub fn is_equilateral(&self) -> bool {
         self.count_equal_sides() == 3
+    }
+}
+
+impl<T> Triangle<T>
+    where T: Clone + ::std::fmt::Debug + PartialOrd + Zero
+{
+    pub fn document(&self) {
+        println!("Sides: {:?}", self.sides);
+        println!(" Eq. Sides:   {}", self.count_equal_sides());
+        println!(" Equilateral: {}", self.is_equilateral());
+        println!(" Isosceles:   {}", self.is_isosceles());
+        println!(" Scalene:     {}", self.is_scalene());
     }
 }
