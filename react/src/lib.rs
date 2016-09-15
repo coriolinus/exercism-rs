@@ -13,7 +13,7 @@ pub struct Reactor<T> {
     next_cb_id: CallbackID,
     input_cells: HashMap<CellID, T>,
     callbacks: HashMap<CallbackID, Box<Fn(&[T]) -> T>>,
-    compute_cells: HashMap<CellID, (Vec<CellID>, CallbackID)>,
+    compute_cells: HashMap<CellID, (Vec<CellID>, Box<Fn(&[T]) -> T>)>,
 }
 
 // You are guaranteed that Reactor will only be tested against types that are Copy + PartialEq.
@@ -70,10 +70,10 @@ impl<T: Copy + PartialEq> Reactor<T> {
             return Err(());
         }
 
-        let cbid = self.next_callback_id();
-        self.callbacks.insert(cbid, Box::new(compute_func));
         let cid = self.next_cell_id();
-        self.compute_cells.insert(cid, (Vec::from_iter(dependencies.iter().cloned()), cbid));
+        self.compute_cells.insert(cid,
+                                  (Vec::from_iter(dependencies.iter().cloned()),
+                                   Box::new(compute_func)));
         Ok(cid)
     }
 
@@ -89,7 +89,7 @@ impl<T: Copy + PartialEq> Reactor<T> {
             // it's ok to call cloned because all T are Copy
             self.input_cells.get(&id).cloned()
         } else if self.compute_cells.contains_key(&id) {
-            let &(ref dependencies, callback_id) = self.compute_cells.get(&id).unwrap();
+            let &(ref dependencies, ref compute_func) = self.compute_cells.get(&id).unwrap();
 
             // OK, this is going to take a little explaining. Starting from the top:
             // 1. We iterate through each dependency in our dependencies list, collecting
@@ -100,14 +100,8 @@ impl<T: Copy + PartialEq> Reactor<T> {
                 // 2. Assuming all the dependencies existed, we now have a Some(Vec<T>)
                 //    in hand. We label that as `d_values`, the values of each of our
                 //    dependencies.
-                .and_then(|d_values| {
-                    // 3. Since we're in a new context, we can now start a new line of
-                    //    execution. We attempt to get the relevant callback from our table.
-                    //    Assuming it exists, we can use it to generate a callback by
-                    //    simply calling it with d_values.
-                    self.callbacks
-                        .get(&callback_id)
-                        .map(|callback| callback(&d_values))
+                .map(|d_values| {
+                    compute_func(&d_values)
                 })
             // If at any point in the preceeding we encountered None, meaning that an
             // individual dependency returned None when we tried to get its value, or
