@@ -17,6 +17,7 @@ pub enum ReactorError {
     CellDoesntExist(CellID),
     NotAnInputCell(CellID),
     NotAComputeCell(CellID),
+    CallbackNotPresent(CallbackID),
 }
 
 enum Cell<'a, T> {
@@ -30,7 +31,7 @@ enum Cell<'a, T> {
 }
 
 // You are guaranteed that Reactor will only be tested against types that are Copy + PartialEq.
-impl<'a, T: Copy + PartialEq> Reactor<'a, T> {
+impl<'a, T: Copy + PartialEq + ::std::fmt::Display> Reactor<'a, T> {
     pub fn new() -> Self {
         Reactor {
             cells: Vec::new(),
@@ -136,8 +137,8 @@ impl<'a, T: Copy + PartialEq> Reactor<'a, T> {
             match self.cells[id] {
                 Cell::Input { .. } => Err(ReactorError::NotAComputeCell(id)),
                 Cell::Compute { ref mut cache, ref callbacks, .. } => {
-                    *cache = new_cache;
                     let changed = *cache != new_cache;
+                    *cache = new_cache;
                     if changed {
                         for cbid in callbacks {
                             // see http://stackoverflow.com/a/39532428/504550 for
@@ -194,6 +195,11 @@ impl<'a, T: Copy + PartialEq> Reactor<'a, T> {
                             }
                         }
                     }
+                    // we depend on the fact that no cell will ever depend on
+                    // a cell with a higher ID in order to ensure that no callback is called
+                    // more than once.
+                    cells_to_update.sort();
+                    cells_to_update.dedup();
                     for cell in cells_to_update {
                         try!(self.update_compute_cache(cell));
                     }
@@ -258,8 +264,13 @@ impl<'a, T: Copy + PartialEq> Reactor<'a, T> {
         match self.cells[cell] {
             Cell::Input { .. } => Err(ReactorError::NotAComputeCell(cell)),
             Cell::Compute { ref mut callbacks, .. } => {
-                callbacks.remove(&callback);
-                Ok(())
+                if callbacks.remove(&callback) {
+                    // callback did exist in the callback set
+                    Ok(())
+                } else {
+                    // callback wasn't already in the callback set
+                    Err(ReactorError::CallbackNotPresent(callback))
+                }
             }
         }
     }
