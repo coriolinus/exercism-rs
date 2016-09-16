@@ -31,7 +31,7 @@ enum Cell<'a, T> {
 }
 
 // You are guaranteed that Reactor will only be tested against types that are Copy + PartialEq.
-impl<'a, T: Copy + PartialEq + ::std::fmt::Display> Reactor<'a, T> {
+impl<'a, T: Copy + PartialEq> Reactor<'a, T> {
     pub fn new() -> Self {
         Reactor {
             cells: Vec::new(),
