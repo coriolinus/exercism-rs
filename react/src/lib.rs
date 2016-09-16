@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 // Because these are passed without & to some functions,
 // it will probably be necessary for these two types to be Copy.
@@ -8,6 +8,7 @@ pub type CallbackID = usize;
 pub struct Reactor<'a, T> {
     cells: Vec<Cell<'a, T>>,
     forward_references: HashMap<CellID, VecDeque<CellID>>,
+    callbacks: Vec<Box<FnMut(T) + 'a>>,
 }
 
 #[derive(Debug)]
@@ -24,6 +25,7 @@ enum Cell<'a, T> {
         cache: T,
         dependencies: Vec<CellID>,
         update: Box<Fn(&[T]) -> T + 'a>,
+        callbacks: HashSet<CallbackID>,
     },
 }
 
@@ -33,6 +35,7 @@ impl<'a, T: Copy + PartialEq> Reactor<'a, T> {
         Reactor {
             cells: Vec::new(),
             forward_references: HashMap::new(),
+            callbacks: Vec::new(),
         }
     }
 
@@ -77,6 +80,7 @@ impl<'a, T: Copy + PartialEq> Reactor<'a, T> {
             cache: cache,
             dependencies: Vec::from(dependencies),
             update: Box::new(compute_func),
+            callbacks: HashSet::new(),
         });
 
         // ensure we can trace dependencies forward
@@ -131,12 +135,18 @@ impl<'a, T: Copy + PartialEq> Reactor<'a, T> {
             // now borrow self once, mutably to set the new cache value
             match self.cells[id] {
                 Cell::Input { .. } => Err(ReactorError::NotAComputeCell(id)),
-                Cell::Compute { ref mut cache, .. } => {
+                Cell::Compute { ref mut cache, ref callbacks, .. } => {
                     *cache = new_cache;
                     let changed = *cache != new_cache;
                     if changed {
-                        // TODO call relevant callbacks here
-                        unimplemented!()
+                        for cbid in callbacks {
+                            // see http://stackoverflow.com/a/39532428/504550 for
+                            // a small discussion of why this syntax is necessary.
+                            // In short, the FnMut binding must itself be mutable,
+                            // and the compiler isn't smart enough to figure that
+                            // out itself from simply `self.callbacks[*cbid](new_cache);`
+                            (*&mut self.callbacks[*cbid])(new_cache);
+                        }
                     }
                     Ok(changed)
                 }
@@ -206,11 +216,26 @@ impl<'a, T: Copy + PartialEq> Reactor<'a, T> {
     // * Exactly once if the compute cell's value changed as a result of the set_value call.
     //   The value passed to the callback should be the final value of the compute cell after the
     //   set_value call.
-    pub fn add_callback<F: 'a + FnMut(T) -> ()>(&mut self,
-                                                id: CellID,
-                                                callback: F)
-                                                -> Result<CallbackID, ()> {
-        unimplemented!()
+    pub fn add_callback<F: 'a + FnMut(T)>(&mut self,
+                                          id: CellID,
+                                          callback: F)
+                                          -> Result<CallbackID, ReactorError> {
+        if id >= self.cells.len() {
+            return Err(ReactorError::CellDoesntExist(id));
+        }
+
+        // create the callback and get its ID
+        let cbid = self.callbacks.len();
+
+        self.callbacks.push(Box::new(callback));
+
+        match self.cells[id] {
+            Cell::Input { .. } => Err(ReactorError::NotAComputeCell(id)),
+            Cell::Compute { ref mut callbacks, .. } => {
+                callbacks.insert(cbid);
+                Ok(cbid)
+            }
+        }
     }
 
     // Removes the specified callback, using an ID returned from add_callback.
@@ -219,7 +244,23 @@ impl<'a, T: Copy + PartialEq> Reactor<'a, T> {
     // does not exist.
     //
     // A removed callback should no longer be called.
-    pub fn remove_callback(&mut self, cell: CellID, callback: CallbackID) -> Result<(), ()> {
-        unimplemented!()
+    pub fn remove_callback(&mut self,
+                           cell: CellID,
+                           callback: CallbackID)
+                           -> Result<(), ReactorError> {
+        if cell >= self.cells.len() {
+            return Err(ReactorError::CellDoesntExist(cell));
+        }
+
+        // we never actually remove the callback, because that would invalidate all the other
+        // callback IDs. We just stop calling it.
+
+        match self.cells[cell] {
+            Cell::Input { .. } => Err(ReactorError::NotAComputeCell(cell)),
+            Cell::Compute { ref mut callbacks, .. } => {
+                callbacks.remove(&callback);
+                Ok(())
+            }
+        }
     }
 }

@@ -79,7 +79,6 @@ fn error_setting_a_compute_cell() {
 }
 
 #[test]
-#[ignore]
 fn compute_cells_fire_callbacks() {
     // This is a bit awkward, but the closure mutably borrows `values`.
     // So we have to end its borrow by taking reactor out of scope.
@@ -95,7 +94,6 @@ fn compute_cells_fire_callbacks() {
 }
 
 #[test]
-#[ignore]
 fn error_adding_callback_to_nonexistent_cell() {
     let mut dummy_reactor = Reactor::new();
     let input = dummy_reactor.create_input(1);
@@ -104,7 +102,6 @@ fn error_adding_callback_to_nonexistent_cell() {
 }
 
 #[test]
-#[ignore]
 fn callbacks_only_fire_on_change() {
     let mut values = Vec::new();
     {
@@ -120,7 +117,6 @@ fn callbacks_only_fire_on_change() {
 }
 
 #[test]
-#[ignore]
 fn callbacks_can_be_added_and_removed() {
     let mut values1 = Vec::new();
     let mut values2 = Vec::new();
@@ -142,7 +138,6 @@ fn callbacks_can_be_added_and_removed() {
 }
 
 #[test]
-#[ignore]
 fn removing_a_callback_multiple_times_doesnt_interfere_with_other_callbacks() {
     let mut values1 = Vec::new();
     let mut values2 = Vec::new();
@@ -164,7 +159,6 @@ fn removing_a_callback_multiple_times_doesnt_interfere_with_other_callbacks() {
 }
 
 #[test]
-#[ignore]
 fn callbacks_should_only_be_called_once_even_if_multiple_dependencies_change() {
     let mut values = Vec::new();
     {
@@ -181,7 +175,6 @@ fn callbacks_should_only_be_called_once_even_if_multiple_dependencies_change() {
 }
 
 #[test]
-#[ignore]
 fn callbacks_should_not_be_called_if_dependencies_change_but_output_value_doesnt_change() {
     let mut values = Vec::new();
     {
@@ -200,7 +193,6 @@ fn callbacks_should_not_be_called_if_dependencies_change_but_output_value_doesnt
 }
 
 #[test]
-#[ignore]
 fn test_adder_with_boolean_values() {
     // This is a digital logic circuit called an adder:
     // https://en.wikipedia.org/wiki/Adder_(electronics)
