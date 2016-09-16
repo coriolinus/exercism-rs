@@ -1,49 +1,46 @@
-use std::collections::HashMap;
-use std::iter::FromIterator;
+use std::collections::{HashMap, VecDeque};
 
 // Because these are passed without & to some functions,
 // it will probably be necessary for these two types to be Copy.
 pub type CellID = usize;
 pub type CallbackID = usize;
 
-pub struct Reactor<T> {
-    // Just so that the compiler doesn't complain about an unused type parameter.
-    // You probably want to delete this field.
-    next_c_id: CellID,
-    next_cb_id: CallbackID,
-    input_cells: HashMap<CellID, T>,
-    callbacks: HashMap<CallbackID, Box<Fn(&[T]) -> T>>,
-    compute_cells: HashMap<CellID, (Vec<CellID>, Box<Fn(&[T]) -> T>)>,
+pub struct Reactor<'a, T> {
+    cells: Vec<Cell<'a, T>>,
+    forward_references: HashMap<CellID, VecDeque<CellID>>,
+}
+
+#[derive(Debug)]
+pub enum ReactorError {
+    DependencyDoesntExist,
+    CellDoesntExist(CellID),
+    NotAnInputCell(CellID),
+    NotAComputeCell(CellID),
+}
+
+enum Cell<'a, T> {
+    Input { value: T },
+    Compute {
+        cache: T,
+        dependencies: Vec<CellID>,
+        update: Box<Fn(&[T]) -> T + 'a>,
+    },
 }
 
 // You are guaranteed that Reactor will only be tested against types that are Copy + PartialEq.
-impl<T: Copy + PartialEq> Reactor<T> {
-    fn next_cell_id(&mut self) -> CellID {
-        let cid = self.next_c_id;
-        self.next_c_id += 1;
-        cid
-    }
-
-    fn next_callback_id(&mut self) -> CallbackID {
-        let cid = self.next_cb_id;
-        self.next_cb_id += 1;
-        cid
-    }
-
+impl<'a, T: Copy + PartialEq> Reactor<'a, T> {
     pub fn new() -> Self {
         Reactor {
-            next_c_id: 0,
-            next_cb_id: 0,
-            input_cells: HashMap::new(),
-            callbacks: HashMap::new(),
-            compute_cells: HashMap::new(),
+            cells: Vec::new(),
+            forward_references: HashMap::new(),
         }
     }
 
+
     // Creates an input cell with the specified initial value, returning its ID.
     pub fn create_input(&mut self, initial: T) -> CellID {
-        let cid = self.next_cell_id();
-        self.input_cells.insert(cid, initial);
+        let cid = self.cells.len();
+        self.cells.push(Cell::Input { value: initial });
         cid
     }
 
@@ -58,22 +55,35 @@ impl<T: Copy + PartialEq> Reactor<T> {
     // Notice that there is no way to *remove* a cell.
     // This means that you may assume, without checking, that if the dependencies exist at creation
     // time they will continue to exist as long as the Reactor exists.
-    pub fn create_compute<F: 'static + Fn(&[T]) -> T>(&mut self,
-                                                      dependencies: &[CellID],
-                                                      compute_func: F)
-                                                      -> Result<CellID, ()> {
+    pub fn create_compute<F: 'a + Fn(&[T]) -> T>(&mut self,
+                                                 dependencies: &[CellID],
+                                                 compute_func: F)
+                                                 -> Result<CellID, ReactorError> {
 
-        if !dependencies.iter().all(|depend_id| {
-            self.input_cells.contains_key(depend_id) || self.compute_cells.contains_key(depend_id)
-        }) {
-            // not all dependencies exist
-            return Err(());
+        let cid = self.cells.len();
+        // compute the initial value.
+        // We unfortunately can't just call update_compute_cache here,
+        // because we can't actually create the cell to insert incomplete,
+        // and it's too much hassle to wrap the cache in an Option<>.
+        // We just end up repeating ourselves a little instead.
+        let d_values = try!(dependencies.iter()
+            .map(|d_id| self.value(*d_id))
+            .collect::<Option<Vec<_>>>()
+            .ok_or(ReactorError::DependencyDoesntExist));
+        let cache = compute_func(&d_values);
+
+        // insert the cell into the cells vec
+        self.cells.push(Cell::Compute {
+            cache: cache,
+            dependencies: Vec::from(dependencies),
+            update: Box::new(compute_func),
+        });
+
+        // ensure we can trace dependencies forward
+        for dependency in dependencies {
+            self.forward_references.entry(*dependency).or_insert(VecDeque::new()).push_back(cid);
         }
 
-        let cid = self.next_cell_id();
-        self.compute_cells.insert(cid,
-                                  (Vec::from_iter(dependencies.iter().cloned()),
-                                   Box::new(compute_func)));
         Ok(cid)
     }
 
@@ -85,32 +95,52 @@ impl<T: Copy + PartialEq> Reactor<T> {
     // It turns out this introduces a significant amount of extra complexity to this exercise.
     // We chose not to cover this here, since this exercise is probably enough work as-is.
     pub fn value(&self, id: CellID) -> Option<T> {
-        if self.input_cells.contains_key(&id) {
-            // it's ok to call cloned because all T are Copy
-            self.input_cells.get(&id).cloned()
-        } else if self.compute_cells.contains_key(&id) {
-            let &(ref dependencies, ref compute_func) = self.compute_cells.get(&id).unwrap();
-
-            // OK, this is going to take a little explaining. Starting from the top:
-            // 1. We iterate through each dependency in our dependencies list, collecting
-            //    them into an Option<Vec<T>>.
-            dependencies.iter()
-                .map(|dependency| self.value(*dependency))
-                .collect::<Option<Vec<_>>>()
-                // 2. Assuming all the dependencies existed, we now have a Some(Vec<T>)
-                //    in hand. We label that as `d_values`, the values of each of our
-                //    dependencies.
-                .map(|d_values| {
-                    compute_func(&d_values)
-                })
-            // If at any point in the preceeding we encountered None, meaning that an
-            // individual dependency returned None when we tried to get its value, or
-            // a callback didn't exist, that None propagates upward here. We end up
-            // not having to unwrap _anything_, which is a good property to have.
-
-
-        } else {
+        if id >= self.cells.len() {
             None
+        } else {
+            match self.cells[id] {
+                Cell::Input { value } => Some(value),
+                Cell::Compute { cache, .. } => Some(cache),
+            }
+        }
+    }
+
+    /// Update a particular cell by id.
+    ///
+    /// If the cell is valid, return a bool indicating whether the cell changed
+    /// as a result of this update.
+    ///
+    /// Otherwise, return a ReactorError.
+    fn update_compute_cache(&mut self, id: CellID) -> Result<bool, ReactorError> {
+        if id >= self.cells.len() {
+            Err(ReactorError::CellDoesntExist(id))
+        } else {
+            // borrow self immutably a few times to figure out the new cache value
+            let new_cache = try!(match self.cells[id] {
+                Cell::Input { .. } => Err(ReactorError::NotAComputeCell(id)),
+                Cell::Compute { ref dependencies, ref update, .. } => {
+                    let d_values = try!(dependencies.iter()
+                        .map(|d_id| self.value(*d_id))
+                        .collect::<Option<Vec<_>>>()
+                        .ok_or(ReactorError::DependencyDoesntExist));
+
+                    Ok(update(&d_values))
+                }
+            });
+
+            // now borrow self once, mutably to set the new cache value
+            match self.cells[id] {
+                Cell::Input { .. } => Err(ReactorError::NotAComputeCell(id)),
+                Cell::Compute { ref mut cache, .. } => {
+                    *cache = new_cache;
+                    let changed = *cache != new_cache;
+                    if changed {
+                        // TODO call relevant callbacks here
+                        unimplemented!()
+                    }
+                    Ok(changed)
+                }
+            }
         }
     }
 
@@ -123,12 +153,44 @@ impl<T: Copy + PartialEq> Reactor<T> {
     // a `set_value(&mut self, new_value: T)` method on `Cell`.
     //
     // As before, that turned out to add too much extra complexity.
-    pub fn set_value(&mut self, id: CellID, new_value: T) -> Result<(), ()> {
-        if self.input_cells.contains_key(&id) {
-            self.input_cells.insert(id, new_value);
-            Ok(())
+    pub fn set_value(&mut self, id: CellID, new_value: T) -> Result<(), ReactorError> {
+        if id >= self.cells.len() {
+            Err(ReactorError::CellDoesntExist(id))
         } else {
-            Err(())
+            match self.cells[id] {
+                Cell::Compute { .. } => Err(ReactorError::NotAnInputCell(id)),
+                Cell::Input { .. } => {
+                    self.cells[id] = Cell::Input { value: new_value };
+
+                    // go through and update everything which depended on this cell now
+                    let mut cells_to_update = Vec::new();
+                    if let Some(fwd_ref) = self.forward_references.get(&id) {
+                        let mut fwd_ref = fwd_ref.clone();
+
+                        while fwd_ref.len() > 0 {
+                            let updating_cell_id = fwd_ref.pop_front().unwrap();
+                            // Ideally, instead of pushing to a list of cells to update here,
+                            // we'd just update the compute cache. Unfortunately, *self has
+                            // been borrowed mutably once already, and we can't do it again.
+                            //
+                            // The implication is that we can't filter, here, only those
+                            // cells whose values actually changed from the computation;
+                            // we have to propagate through all updated cells even if some
+                            // of them don't change.
+                            cells_to_update.push(updating_cell_id);
+                            if let Some(n_fwd_ref) = self.forward_references
+                                .get(&updating_cell_id) {
+                                fwd_ref.extend(n_fwd_ref);
+                            }
+                        }
+                    }
+                    for cell in cells_to_update {
+                        try!(self.update_compute_cache(cell));
+                    }
+
+                    Ok(())
+                }
+            }
         }
     }
 
@@ -144,10 +206,10 @@ impl<T: Copy + PartialEq> Reactor<T> {
     // * Exactly once if the compute cell's value changed as a result of the set_value call.
     //   The value passed to the callback should be the final value of the compute cell after the
     //   set_value call.
-    pub fn add_callback<F: FnMut(T) -> ()>(&mut self,
-                                           id: CellID,
-                                           callback: F)
-                                           -> Result<CallbackID, ()> {
+    pub fn add_callback<F: 'a + FnMut(T) -> ()>(&mut self,
+                                                id: CellID,
+                                                callback: F)
+                                                -> Result<CallbackID, ()> {
         unimplemented!()
     }
 
