@@ -1,23 +1,30 @@
-pub fn abbreviate(phrase: &str) -> String {
-    // is this the first letter in a phrase / word?
-    let mut initial = true;
+// for iterator .join() method
+extern crate itertools;
+use itertools::Itertools;
 
+pub fn abbreviate(phrase: &str) -> String {
     phrase.trim()
-        .chars()
-        .filter(|&ch| {
-            if initial && ch.is_alphabetic() {
-                // initial characters should be included if alphabetic
-                initial = false;
-                true
-            } else if !ch.is_alphabetic() {
-                // the next character after a non-alphabetic one should be an initial
-                initial = true;
-                false
-            } else if ch.is_uppercase() {
-                true
+        .split(|c: char| !c.is_alphabetic())
+        .filter(|&word| word.len() > 0)
+        .map(|word| {
+            if word.chars().all(|ch| ch.is_uppercase()) {
+                word.chars().next().unwrap().to_string()
             } else {
-                false
+                let mut initial = true;
+                word.chars()
+                    .filter(|&ch| {
+                        if initial {
+                            initial = false;
+                            true
+                        } else if ch.is_uppercase() {
+                            true
+                        } else {
+                            false
+                        }
+                    })
+                    .collect::<String>()
             }
         })
-        .collect()
+        .join("")
+        .to_uppercase()
 }
