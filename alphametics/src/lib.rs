@@ -4,10 +4,10 @@ use std::collections::{HashMap, HashSet};
 
 #[macro_use]
 extern crate try_opt;
-#[macro_use]
 extern crate itertools;
-
 use itertools::Itertools;
+extern crate permutohedron;
+use permutohedron::Heap;
 
 pub type Mapping = HashMap<char, u8>;
 type LetterSet = HashSet<char>;
@@ -38,7 +38,7 @@ impl Word {
     }
 
     fn starts_with_zero(&self, map: &Mapping) -> bool {
-        !self.chars.is_empty() && *map.get(self.chars.first().unwrap()).unwrap_or(&0) != 0
+        !self.chars.is_empty() && *map.get(self.chars.first().unwrap()).unwrap_or(&0) == 0
     }
 }
 
@@ -112,13 +112,29 @@ impl Equation {
         })
     }
 
-    fn generate_mapping(&self, permutation: &[char]) {
-        unimplemented!()
+    fn generate_mapping(&self, permutation: &[u8]) -> Mapping {
+        self.letters.iter().cloned().zip_eq(permutation).map(|(k, &v)| (k, v)).collect()
     }
 
     fn solve(&self) -> Option<Mapping> {
-        const DIGITS: [char; 10] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-        unimplemented!()
+        let mut solution = None;
+
+        for mut digit_set in (0..10).combinations(self.letters.len()) {
+            let heap = Heap::new(&mut digit_set);
+            for permutation in heap {
+                let map = self.generate_mapping(&permutation);
+                if self.evaluate(&map) == Some(true) {
+                    if solution.is_some() {
+                        // reject puzzles with multiple solutions
+                        return None;
+                    } else {
+                        solution = Some(map);
+                    }
+                }
+            }
+        }
+
+        solution
     }
 
     fn evaluate(&self, map: &Mapping) -> Option<bool> {
