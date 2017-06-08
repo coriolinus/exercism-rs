@@ -4,3 +4,5 @@ version = "1.0.0"
 
 [dependencies]
 try_opt = "0.1.1"
+permutohedron = "0.2.2"
+itertools = "0.6.0"

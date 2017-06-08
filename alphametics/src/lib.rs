@@ -4,6 +4,10 @@ use std::collections::{HashMap, HashSet};
 
 #[macro_use]
 extern crate try_opt;
+#[macro_use]
+extern crate itertools;
+
+use itertools::Itertools;
 
 pub type Mapping = HashMap<char, u8>;
 type LetterSet = HashSet<char>;
@@ -32,6 +36,10 @@ impl Word {
     fn letters(&self) -> LetterSet {
         self.chars.iter().cloned().collect()
     }
+
+    fn starts_with_zero(&self, map: &Mapping) -> bool {
+        !self.chars.is_empty() && *map.get(self.chars.first().unwrap()).unwrap_or(&0) != 0
+    }
 }
 
 impl fmt::Display for Word {
@@ -51,7 +59,7 @@ enum TokenType {
 struct Equation {
     left: Vec<Word>,
     right: Vec<Word>,
-    letters: LetterSet,
+    letters: Vec<char>,
 }
 
 impl Equation {
@@ -92,15 +100,30 @@ impl Equation {
             prev_token_type = token_type;
         }
 
+        if letters.len() > 10 {
+            // can't uniquely map each letter to a digit
+            return None;
+        }
+
+        Some(Equation {
+            left: left,
+            right: right,
+            letters: letters.iter().cloned().collect(),
+        })
+    }
+
+    fn generate_mapping(&self, permutation: &[char]) {
         unimplemented!()
     }
 
     fn solve(&self) -> Option<Mapping> {
+        const DIGITS: [char; 10] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
         unimplemented!()
     }
 
     fn evaluate(&self, map: &Mapping) -> Option<bool> {
-        Some(try_opt!(self.left.iter().map(|word| word.value(map)).collect::<Option<Vec<_>>>())
+        Some(!self.left.iter().chain(self.right.iter()).any(|word| word.starts_with_zero(map)) &&
+             try_opt!(self.left.iter().map(|word| word.value(map)).collect::<Option<Vec<_>>>())
             .iter()
             .sum::<usize>() ==
              try_opt!(self.right.iter().map(|word| word.value(map)).collect::<Option<Vec<_>>>())
