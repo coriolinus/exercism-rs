@@ -1,0 +1,6 @@
+[package]
+name = "isogram"
+version = "1.2.0"
+
+[dependencies]
+counter = "0.1.0"
