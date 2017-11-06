@@ -1,0 +1,6 @@
+[package]
+name = "isbn-verifier"
+version = "1.1.0"
+
+[dependencies]
+try_opt = "0.1.1"
