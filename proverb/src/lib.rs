@@ -1,6 +1,6 @@
 
 pub fn build_proverb(items: Vec<&str>) -> String {
-    let mut stanzas = Vec::new();
+    let mut stanzas = Vec::with_capacity(items.len());
     for index in 0..items.len() {
         if index == items.len() - 1 {
             stanzas.push(format!("And all for the want of a {}.", items[0]));
