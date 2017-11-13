@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashSet};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::mem;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 extern crate noisy_float;
 use noisy_float::prelude::*;
@@ -14,22 +14,30 @@ type Price = f64;
 const BOOK_PRICE: Price = 8.0;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Group(RefCell<BTreeSet<Book>>);
+struct Group {
+    books: RefCell<BTreeSet<Book>>,
+    t_added: Cell<Option<Book>>,
+    t_removed: Cell<Option<Book>>,
+}
 
 impl Group {
     fn new() -> Group {
-        Group(RefCell::new(BTreeSet::new()))
+        Group {
+            books: RefCell::new(BTreeSet::new()),
+            t_added: Cell::new(None),
+            t_removed: Cell::new(None),
+        }
     }
 
     fn new_containing(book: Book) -> Group {
         let g = Group::new();
-        g.0.borrow_mut().insert(book);
+        g.books.borrow_mut().insert(book);
         g
     }
 
     fn price(&self) -> Price {
-        (self.0.borrow().len() as Price) * BOOK_PRICE *
-            match self.0.borrow().len() {
+        (self.books.borrow().len() as Price) * BOOK_PRICE *
+            match self.books.borrow().len() {
                 2 => 0.95,
                 3 => 0.90,
                 4 => 0.80,
@@ -37,20 +45,41 @@ impl Group {
                 _ => 1.0,
             }
     }
+
+    fn t_add(&self, b: Book) {
+        self.books.borrow_mut().insert(b);
+        self.t_added.set(Some(b));
+    }
+
+    fn t_remove(&self, b: Book) {
+        self.books.borrow_mut().remove(&b);
+        self.t_removed.set(Some(b));
+    }
+
+    fn reset(&self) {
+        if let Some(added) = self.t_added.get() {
+            self.books.borrow_mut().remove(&added);
+            self.t_added.set(None);
+        }
+        if let Some(removed) = self.t_removed.get() {
+            self.books.borrow_mut().insert(removed);
+            self.t_removed.set(None);
+        }
+    }
 }
 
 
 impl Ord for Group {
     // we want to order groups first by qty contained DESC, then by lowest value ASC
     fn cmp(&self, other: &Group) -> Ordering {
-        match other.0.borrow().len().cmp(&self.0.borrow().len()) {
+        match other.books.borrow().len().cmp(&self.books.borrow().len()) {
             Ordering::Equal => {
-                if self.0.borrow().len() == 0 {
+                if self.books.borrow().len() == 0 {
                     Ordering::Equal
                 } else {
-                    self.0.borrow().iter().next().unwrap().cmp(
+                    self.books.borrow().iter().next().unwrap().cmp(
                         other
-                            .0
+                            .books
                             .borrow()
                             .iter()
                             .next()
@@ -71,7 +100,7 @@ impl PartialOrd for Group {
 
 impl Hash for Group {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.0.borrow().hash(hasher);
+        self.books.borrow().hash(hasher);
     }
 }
 
@@ -87,7 +116,7 @@ fn basket_price(basket: &GroupedBasket) -> Price {
 fn hash_of(basket: &GroupedBasket) -> u64 {
     let lengths = basket
         .iter()
-        .map(|g| g.0.borrow().len())
+        .map(|g| g.books.borrow().len())
         .collect::<Vec<_>>();
     let mut hasher = DefaultHasher::new();
     lengths.hash(&mut hasher);
@@ -124,22 +153,26 @@ impl Iterator for DecomposeGroups {
         //    then move the last item from the most populous group into a new group, alone,
         //    and return
         let return_value = self.next.clone();
-        if let Some(groups) = mem::replace(&mut self.next, None) {
-            if !(groups.is_empty() || groups.iter().all(|g| g.0.borrow().len() == 1)) {
-                let mut hypothetical;
-                for mpg_book in groups[0].0.borrow().iter() {
-                    for (idx, other_group) in groups[1..].iter().enumerate() {
-                        if !other_group.0.borrow().contains(mpg_book) {
-                            hypothetical = groups.clone();
-                            hypothetical[0].0.borrow_mut().remove(mpg_book);
-                            hypothetical[1 + idx].0.borrow_mut().insert(*mpg_book);
-                            hypothetical.sort();
-                            let hypothetical_hash = hash_of(&hypothetical);
+        if let Some(mut groups) = mem::replace(&mut self.next, None) {
+            if !(groups.is_empty() || groups.iter().all(|g| g.books.borrow().len() == 1)) {
+                let mpg_books = groups[0].books.borrow().clone();
+                for mpg_book in mpg_books.iter() {
+                    for idx in 1..groups.len() {
+                        if !groups[idx].books.borrow().contains(mpg_book) {
+                            groups[0].t_remove(*mpg_book);
+                            groups[idx].t_add(*mpg_book);
+                            groups.sort();
+                            let hypothetical_hash = hash_of(&groups);
                             if !self.prev_states.contains(&hypothetical_hash) {
                                 self.prev_states.insert(hypothetical_hash);
-                                mem::replace(&mut self.next, Some(hypothetical));
+                                mem::replace(&mut self.next, Some(groups));
                                 return return_value;
                             }
+                            // reset
+                            for g in groups.iter() {
+                                g.reset();
+                            }
+                            groups.sort();
                         }
                     }
                 }
@@ -147,16 +180,15 @@ impl Iterator for DecomposeGroups {
                 // and none of them can be added to any other existing group.
                 // We need to create a new group;
                 let book = {
-                    let backing_bt = groups[0].0.borrow();
+                    let backing_bt = groups[0].books.borrow();
                     let mut book_iter = backing_bt.iter();
                     book_iter.next().unwrap().clone()
                 };
-                hypothetical = groups.clone();
-                hypothetical[0].0.borrow_mut().remove(&book);
-                hypothetical.push(Group::new_containing(book));
-                hypothetical.sort();
-                self.prev_states.insert(hash_of(&hypothetical));
-                mem::replace(&mut self.next, Some(hypothetical));
+                groups[0].books.borrow_mut().remove(&book);
+                groups.push(Group::new_containing(book));
+                groups.sort();
+                self.prev_states.insert(hash_of(&groups));
+                mem::replace(&mut self.next, Some(groups));
             }
         }
         return_value
@@ -168,8 +200,8 @@ impl DecomposeGroups {
         let mut book_groups = GroupedBasket::new();
         'nextbook: for book in books {
             for idx in 0..book_groups.len() {
-                if !book_groups[idx].0.borrow().contains(&book) {
-                    book_groups[idx].0.borrow_mut().insert(*book);
+                if !book_groups[idx].books.borrow().contains(&book) {
+                    book_groups[idx].books.borrow_mut().insert(*book);
                     continue 'nextbook;
                 }
             }
