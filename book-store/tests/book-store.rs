@@ -116,3 +116,10 @@ fn test_three_copies_of_first_book_and_2_each_of_remaining() {
 fn test_three_each_of_first_2_books_and_2_each_of_remaining_books() {
     process_total_case((vec![1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 1, 2], vec![vec![1, 2, 3, 4, 5], vec![1, 2, 3, 4, 5], vec![1, 2]]), 75.2);
 }
+
+#[test]
+/// Test that the algorithm can handle inputs for which more than one shift from the most compact
+/// case is necessary to find the best result.
+fn test_two_moves_needed() {
+    process_total_case((vec![1, 1, 2, 2, 3, 3, 4, 5, 1, 1, 2, 2, 3, 3, 4, 5], vec![]), 102.4);
+}
