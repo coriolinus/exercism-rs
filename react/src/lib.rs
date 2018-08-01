@@ -34,33 +34,33 @@ pub enum RemoveCallbackError {
     NonexistentCallback,
 }
 
-enum CellType<T> {
+enum CellType<'a, T: 'a> {
     Input(T),
     Compute {
-        func: Box<Fn(&[T]) -> T>,
+        func: &'a Fn(&[T]) -> T,
         args: Vec<CellID>,
         cache_value: T,
         callbacks: Vec<usize>,
     },
 }
 
-struct Cell<T> {
-    ctype: CellType<T>,
+struct Cell<'a, T: 'a> {
+    ctype: CellType<'a, T>,
     fwd_deps: Vec<usize>,
 }
 
-impl<T: Copy + PartialEq> Cell<T> {
-    fn new_input(value: T) -> Cell<T> {
+impl<'a, T: Copy + PartialEq> Cell<'a, T> {
+    fn new_input(value: T) -> Cell<'a, T> {
         Cell {
             ctype: CellType::Input(value),
             fwd_deps: Vec::new(),
         }
     }
-    fn new_compute<F: 'static + Fn(&[T]) -> T>(
+    fn new_compute<F: Fn(&[T]) -> T>(
         dependencies: &[CellID],
-        compute_func: F,
+        compute_func: &'a F,
         reactor: &Reactor<T>,
-    ) -> Cell<T> {
+    ) -> Cell<'a, T> {
         // this must be private because we assume we've already checked
         // that all dependencies exist
         let args: Vec<T> = dependencies
@@ -71,7 +71,7 @@ impl<T: Copy + PartialEq> Cell<T> {
 
         Cell {
             ctype: CellType::Compute {
-                func: Box::new(compute_func),
+                func: compute_func,
                 args: dependencies.iter().cloned().collect(),
                 cache_value: prev,
                 callbacks: Vec::new(),
@@ -88,13 +88,13 @@ impl<T: Copy + PartialEq> Cell<T> {
     }
 }
 
-pub struct Reactor<T> {
-    cells: Vec<Cell<T>>,
-    callbacks: Vec<Option<Box<FnMut(T)>>>,
+pub struct Reactor<'a, T: 'a> {
+    cells: Vec<Cell<'a, T>>,
+    callbacks: Vec<Option<&'a mut FnMut(T)>>,
 }
 
 // You are guaranteed that Reactor will only be tested against types that are Copy + PartialEq.
-impl<T: Copy + PartialEq> Reactor<T> {
+impl<'a, T: Copy + PartialEq> Reactor<'a, T> {
     pub fn new() -> Self {
         Reactor {
             cells: Vec::new(),
@@ -133,10 +133,10 @@ impl<T: Copy + PartialEq> Reactor<T> {
     // Notice that there is no way to *remove* a cell.
     // This means that you may assume, without checking, that if the dependencies exist at creation
     // time they will continue to exist as long as the Reactor exists.
-    pub fn create_compute<F: 'static + Fn(&[T]) -> T>(
+    pub fn create_compute<F: Fn(&[T]) -> T>(
         &mut self,
         dependencies: &[CellID],
-        compute_func: F,
+        compute_func: &'a F,
     ) -> Result<ComputeCellID, CellID> {
         let id = self.cells.len();
         for &dep in dependencies.iter() {
@@ -218,6 +218,7 @@ impl<T: Copy + PartialEq> Reactor<T> {
                         ..
                     } = self.cells[idx].ctype
                     {
+                        *cache_value = nv;
                         for &callback_id in callbacks {
                             if let Some(ref mut callback) = self.callbacks[callback_id] {
                                 callback(*cache_value);
@@ -242,15 +243,15 @@ impl<T: Copy + PartialEq> Reactor<T> {
     // * Exactly once if the compute cell's value changed as a result of the set_value call.
     //   The value passed to the callback should be the final value of the compute cell after the
     //   set_value call.
-    pub fn add_callback<F: 'static + FnMut(T)>(
+    pub fn add_callback<F: FnMut(T)>(
         &mut self,
         id: ComputeCellID,
-        callback: F,
+        callback: &'a mut F,
     ) -> Option<CallbackID> {
         let idx = self.get_idx(CellID::Compute(id)).ok()?;
 
         let cb_id = self.callbacks.len();
-        self.callbacks.push(Some(Box::new(callback)));
+        self.callbacks.push(Some(callback));
 
         if let Cell {
             ctype: CellType::Compute {
