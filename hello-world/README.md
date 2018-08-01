@@ -1,42 +1,18 @@
 # Hello World
 
-Write a program that greets the user by name, or by saying "Hello, World!" if no name is given.
+The classical introductory exercise. Just say "Hello, World!".
 
-["Hello, World!"](http://en.wikipedia.org/wiki/%22Hello,_world!%22_program) is the traditional first program for beginning programming in a new language.
+["Hello, World!"](http://en.wikipedia.org/wiki/%22Hello,_world!%22_program) is
+the traditional first program for beginning programming in a new language
+or environment.
 
-**Note:** You can skip this exercise by running:
+The objectives are simple:
 
-    exercism skip $LANGUAGE hello-world
+- Write a function that returns the string "Hello, World!".
+- Run the test suite and make sure that it succeeds.
+- Submit your solution and check it at the website.
 
-## Specification
-
-The `Hello World!` program will greet me, the caller.
-
-If I tell the program my name is Alice, it will greet me by saying "Hello, Alice!".
-
-If I neglect to give it my name, it will greet me by saying "Hello, World!"
-
-## Test-Driven Development
-
-As programmers mature, they eventually want to test their code.
-
-Here at Exercism we simulate [Test-Driven Development](http://en.wikipedia.org/wiki/Test-driven_development) (TDD), where you write your tests before writing any functionality. The simulation comes in the form of a pre-written test suite, which will signal that you have solved the problem.
-
-It will also provide you with a safety net to explore other solutions without breaking the functionality.
-
-### A typical TDD workflow on Exercism:
-
-1. Run the test file and pick one test that's failing.
-2. Write some code to fix the test you picked.
-3. Re-run the tests to confirm the test is now passing.
-4. Repeat from step 1.
-5. Submit your solution (`exercism submit /path/to/file`)
-
-## Instructions
-
-Submissions are encouraged to be general, within reason. Having said that, it's also important not to over-engineer a solution.
-
-It's important to remember that the goal is to make code as expressive and readable as we can. However, solutions to the hello-world exercise will not be reviewed by a person, but by rikki- the robot, who will offer an encouraging word.
+If everything goes well, you will be ready to fetch your first real exercise.
 
 ## Rust Installation
 
@@ -51,24 +27,49 @@ Execute the tests with:
 $ cargo test
 ```
 
-All but the first test have been ignored.  After you get the first test to
-pass, remove the ignore flag (`#[ignore]`) from the next test and get the tests
-to pass again.  The test file is located in the `tests` directory.   You can
-also remove the ignore flag from all the tests to get them to run all at once
-if you wish.
+All but the first test have been ignored. After you get the first test to
+pass, open the tests source file which is located in the `tests` directory
+and remove the `#[ignore]` flag from the next test and get the tests to pass
+again. Each separate test is a function with `#[test]` flag above it.
+Continue, until you pass every test. 
 
-Make sure to read the [Crates and Modules](https://doc.rust-lang.org/stable/book/crates-and-modules.html) chapter if you
+If you wish to run all tests without editing the tests source file, use:
+
+```bash
+$ cargo test -- --ignored
+```
+
+To run a specific test, for example `some_test`, you can use:
+
+```bash
+$ cargo test some_test
+```
+
+If the specific test is ignored use:
+
+```bash
+$ cargo test some_test -- --ignored
+```
+
+To learn more about Rust tests refer to the [online test documentation][rust-tests]
+
+Make sure to read the [Modules](https://doc.rust-lang.org/book/second-edition/ch07-00-modules.html) chapter if you
 haven't already, it will help you with organizing your files.
 
 ## Feedback, Issues, Pull Requests
 
-The [exercism/xrust](https://github.com/exercism/xrust) repository on GitHub is the home for all of the Rust exercises. If you have feedback about an exercise, or want to help implement new exercises, head over there and create an issue. Members of the [rust track team](https://github.com/orgs/exercism/teams/rust) are happy to help!
+The [exercism/rust](https://github.com/exercism/rust) repository on GitHub is the home for all of the Rust exercises. If you have feedback about an exercise, or want to help implement new exercises, head over there and create an issue. Members of the rust track team are happy to help!
 
-If you want to know more about Exercism, take a look at the [contribution guide](https://github.com/exercism/x-common/blob/master/CONTRIBUTING.md).
+If you want to know more about Exercism, take a look at the [contribution guide](https://github.com/exercism/docs/blob/master/contributing-to-language-tracks/README.md).
 
 [help-page]: http://exercism.io/languages/rust
-[crates-and-modules]: http://doc.rust-lang.org/stable/book/crates-and-modules.html
+[modules]: https://doc.rust-lang.org/book/second-edition/ch07-00-modules.html
+[cargo]: https://doc.rust-lang.org/book/second-edition/ch14-00-more-about-cargo.html
+[rust-tests]: https://doc.rust-lang.org/book/second-edition/ch11-02-running-tests.html
 
 ## Source
 
-This is a program to introduce users to using Exercism [http://en.wikipedia.org/wiki/%22Hello,_world!%22_program](http://en.wikipedia.org/wiki/%22Hello,_world!%22_program)
+This is an exercise to introduce users to using Exercism [http://en.wikipedia.org/wiki/%22Hello,_world!%22_program](http://en.wikipedia.org/wiki/%22Hello,_world!%22_program)
+
+## Submitting Incomplete Solutions
+It's possible to submit an incomplete solution so you can see how others have completed the exercise.
