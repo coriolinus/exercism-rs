@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::fmt::Display;
 
 /// `InputCellID` is a unique identifier for an input cell.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -49,7 +50,7 @@ struct Cell<T> {
     fwd_deps: Vec<usize>,
 }
 
-impl<T: Copy + PartialEq> Cell<T> {
+impl<T: Copy + PartialEq + Display> Cell<T> {
     fn new_input(value: T) -> Cell<T> {
         Cell {
             ctype: CellType::Input(value),
@@ -88,13 +89,13 @@ impl<T: Copy + PartialEq> Cell<T> {
     }
 }
 
-pub struct Reactor<T> {
+pub struct Reactor<'a, T> {
     cells: Vec<Cell<T>>,
-    callbacks: Vec<Option<Box<FnMut(T)>>>,
+    callbacks: Vec<Option<Box<FnMut(T) + 'a>>>,
 }
 
 // You are guaranteed that Reactor will only be tested against types that are Copy + PartialEq.
-impl<T: Copy + PartialEq> Reactor<T> {
+impl<'a, T: Copy + PartialEq + Display> Reactor<'a, T> {
     pub fn new() -> Self {
         Reactor {
             cells: Vec::new(),
@@ -139,6 +140,11 @@ impl<T: Copy + PartialEq> Reactor<T> {
         compute_func: F,
     ) -> Result<ComputeCellID, CellID> {
         let id = self.cells.len();
+        // iter over the dependencies twice: once to ensure that they're all valid,
+        // and the second time to add the forward dependencies if everything is kosher
+        for &dep in dependencies.iter() {
+            self.get_idx(dep)?;
+        }
         for &dep in dependencies.iter() {
             let idx = self.get_idx(dep)?;
             self.cells[idx].fwd_deps.push(id);
@@ -170,6 +176,7 @@ impl<T: Copy + PartialEq> Reactor<T> {
     // As before, that turned out to add too much extra complexity.
     pub fn set_value(&mut self, id: InputCellID, new_value: T) -> bool {
         if let Ok(idx) = self.get_idx(CellID::Input(id)) {
+            // println!("set_value: Found input cell at idx {}", idx);
             let mut changed;
             if let Cell {
                 ctype: CellType::Input(ref mut val),
@@ -177,6 +184,10 @@ impl<T: Copy + PartialEq> Reactor<T> {
             } = self.cells[idx]
             {
                 changed = *val != new_value;
+                // println!(
+                //     "set_value: {} -> {} (changed: {})",
+                //     *val, new_value, changed
+                // );
                 *val = new_value;
             } else {
                 unreachable!()
@@ -186,17 +197,23 @@ impl<T: Copy + PartialEq> Reactor<T> {
             }
             true
         } else {
+            // println!("set_value: No cell found at {:?}", id);
             false
         }
     }
 
     fn update_fwd(&mut self, idx: usize) {
+        let mut callback_cells = Vec::new();
         let mut dirty_cells = VecDeque::new();
 
         dirty_cells.push_back(idx);
 
-        while !dirty_cells.is_empty() {
-            let idx = dirty_cells.pop_front().unwrap();
+        // println!("update_fwd: init dirty_cells: {:?}", dirty_cells);
+
+        while let Some(idx) = dirty_cells.pop_front() {
+            // println!("update_fwd: examining dirty cell {}", idx);
+            dirty_cells.extend(self.cells[idx].fwd_deps.iter());
+            // println!("update_fwd: new dirty cells: {:?}", dirty_cells);
             let (prev_value, new_value) = if let CellType::Compute {
                 ref func,
                 ref args,
@@ -211,21 +228,39 @@ impl<T: Copy + PartialEq> Reactor<T> {
             };
             match (prev_value, new_value) {
                 (Some(pv), Some(nv)) if pv != nv => {
-                    dirty_cells.extend(self.cells[idx].fwd_deps.iter());
+                    // println!("update_fwd: change compute[{}] from {} -> {}", idx, pv, nv);
                     if let CellType::Compute {
                         ref mut cache_value,
-                        ref callbacks,
                         ..
                     } = self.cells[idx].ctype
                     {
-                        for &callback_id in callbacks {
-                            if let Some(ref mut callback) = self.callbacks[callback_id] {
-                                callback(*cache_value);
-                            }
-                        }
+                        *cache_value = nv;
+                        callback_cells.push(idx);
                     }
                 }
                 (_, _) => {}
+            }
+        }
+
+        // now ensure all relevant callbacks are called exactly once
+        callback_cells.sort();
+        callback_cells.dedup();
+        for idx in callback_cells {
+            if let CellType::Compute {
+                ref cache_value,
+                ref callbacks,
+                ..
+            } = self.cells[idx].ctype
+            {
+                for &callback_id in callbacks {
+                    // println!(
+                    //     "update_fwd: call callbacks[{}]({})",
+                    //     callback_id, *cache_value
+                    // );
+                    if let Some(ref mut callback) = self.callbacks[callback_id] {
+                        callback(*cache_value);
+                    }
+                }
             }
         }
     }
@@ -242,7 +277,7 @@ impl<T: Copy + PartialEq> Reactor<T> {
     // * Exactly once if the compute cell's value changed as a result of the set_value call.
     //   The value passed to the callback should be the final value of the compute cell after the
     //   set_value call.
-    pub fn add_callback<F: 'static + FnMut(T)>(
+    pub fn add_callback<F: 'a + FnMut(T)>(
         &mut self,
         id: ComputeCellID,
         callback: F,
@@ -251,6 +286,7 @@ impl<T: Copy + PartialEq> Reactor<T> {
 
         let cb_id = self.callbacks.len();
         self.callbacks.push(Some(Box::new(callback)));
+        // println!("add_callback: pushed fn to reactor.callbacks[{}]", cb_id);
 
         if let Cell {
             ctype: CellType::Compute {
@@ -260,6 +296,7 @@ impl<T: Copy + PartialEq> Reactor<T> {
         } = self.cells[idx]
         {
             callbacks.push(cb_id);
+        // println!("add_callback: pushed id to cell.callbacks: {:?}", callbacks);
         } else {
             unreachable!()
         }
