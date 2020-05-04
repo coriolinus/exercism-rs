@@ -1,5 +1,5 @@
 /// `InputCellID` is a unique identifier for an input cell.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct InputCellID(usize);
 /// `ComputeCellID` is a unique identifier for a compute cell.
 /// Values of type `InputCellID` and `ComputeCellID` should not be mutually assignable,
@@ -15,12 +15,12 @@ pub struct InputCellID(usize);
 /// let input = r.create_input(111);
 /// let compute: react::InputCellID = r.create_compute(&[react::CellID::Input(input)], |_| 222).unwrap();
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ComputeCellID(usize);
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CallbackID(usize);
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CellID {
     Input(InputCellID),
     Compute(ComputeCellID),
@@ -53,38 +53,76 @@ pub enum RemoveCallbackError {
     NonexistentCallback,
 }
 
+struct InputCell<T> {
+    value: T,
+    fwd: Vec<ComputeCellID>,
+}
+
+impl<T> InputCell<T> {
+    fn new(value: T) -> Self {
+        Self {
+            value,
+            fwd: Vec::new(),
+        }
+    }
+}
+
 struct ComputeCell<T> {
     dependencies: Vec<CellID>,
     computation: Box<dyn Fn(&[T]) -> T>,
     cache: T,
+    fwd: Vec<ComputeCellID>,
 }
 
 impl<T> ComputeCell<T>
 where
     T: Copy + PartialEq,
 {
+    fn calculate<F>(
+        reactor: &Reactor<T>,
+        dependencies: &[CellID],
+        computation: F,
+    ) -> Result<T, CellID>
+    where
+        F: Fn(&[T]) -> T,
+    {
+        let values = dependencies
+            .iter()
+            .map(|cid| reactor.value(*cid).ok_or(*cid))
+            .collect::<Result<Vec<T>, CellID>>()?;
+        Ok(computation(&values))
+    }
+
     fn new<F>(reactor: &Reactor<T>, dependencies: &[CellID], computation: F) -> Result<Self, CellID>
     where
         F: 'static + Fn(&[T]) -> T,
     {
-        let cache = {
-            let values = dependencies
-                .iter()
-                .map(|cid| reactor.value(*cid).ok_or(*cid))
-                .collect::<Result<Vec<T>, CellID>>()?;
-            computation(&values)
-        };
         Ok(Self {
             dependencies: dependencies.to_owned(),
+            cache: Self::calculate(reactor, dependencies, &computation)?,
             computation: Box::new(computation),
-            cache,
+            fwd: Vec::new(),
         })
+    }
+
+    fn recompute(&mut self, reactor: &Reactor<T>) {
+        self.cache = Self::calculate(reactor, &self.dependencies, &self.computation)
+            .expect("a previously valid ComputeCell was invalidated by loss of dependency");
     }
 }
 
 enum Cell<T> {
-    Input(T),
+    Input(InputCell<T>),
     Compute(ComputeCell<T>),
+}
+
+impl<T> Cell<T> {
+    fn fwd(&self) -> &[ComputeCellID] {
+        match self {
+            Self::Input(input) => &input.fwd,
+            Self::Compute(compute) => &compute.fwd,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -105,7 +143,7 @@ impl<T: Copy + PartialEq> Reactor<T> {
 
     // Creates an input cell with the specified initial value, returning its ID.
     pub fn create_input(&mut self, initial: T) -> InputCellID {
-        InputCellID(self.push_cell(Cell::Input(initial)))
+        InputCellID(self.push_cell(Cell::Input(InputCell::new(initial))))
     }
 
     // Creates a compute cell with the specified dependencies and compute function.
@@ -136,24 +174,65 @@ impl<T: Copy + PartialEq> Reactor<T> {
         }
     }
 
+    // retrieve the cell at the specififed index mutably
+    fn cell_mut(&mut self, id: CellID) -> Option<&mut Cell<T>> {
+        if id.idx() >= self.cells.len() {
+            None
+        } else {
+            Some(&mut self.cells[id.idx()])
+        }
+    }
+
     // Retrieves the current value of the cell, or None if the cell does not exist.
     pub fn value(&self, id: CellID) -> Option<T> {
         match self.cell(id)? {
-            Cell::Input(value) => Some(*value),
+            Cell::Input(ic) => Some(ic.value),
             Cell::Compute(cc) => Some(cc.cache),
         }
     }
 
     // Sets the value of the specified input cell.
     pub fn set_value(&mut self, id: InputCellID, new_value: T) -> bool {
-        match self.cell(id.into()) {
+        let mut recompute;
+
+        match self.cell_mut(id.into()) {
             None => return false,
             Some(Cell::Compute(_)) => return false,
-            _ => {}
+            Some(Cell::Input(ref mut ic)) => {
+                ic.value = new_value;
+
+                // Construct a list of cells to recompute.
+                // Rules:
+                // - we can visit each cell exactly once
+                // - all back-refs must be satisfied before visiting a cell
+                //
+                // This would be a fairly complex topo-sorting operation, but
+                // we have a massive advantage: we know that all cell IDs can
+                // only refer to lower cell IDs numerically. That makes things
+                // simple: just traverse recursively, then sort, then dedup.
+                recompute = ic.fwd.to_owned();
+                // we can't use normal loop operations, because we have to
+                // repeatedly extend the recompute list during iteration.
+                let mut idx = 0;
+                while idx < recompute.len() {
+                    let ComputeCellID(id) = recompute[idx];
+                    recompute.extend(self.cells[id].fwd());
+                    idx += 1;
+                }
+
+                recompute.sort();
+                recompute.dedup();
+            }
         }
 
-        let InputCellID(idx) = id;
-        self.cells[idx] = Cell::Input(new_value);
+        for redo_id in recompute {
+            let ComputeCellID(idx) = redo_id;
+            match self.cells[idx] {
+                Cell::Compute(ref mut cc) => cc.recompute(&self),
+                _ => unreachable!(),
+            }
+        }
+
         true
     }
 
