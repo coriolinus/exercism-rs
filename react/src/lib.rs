@@ -78,36 +78,40 @@ impl<T> ComputeCell<T>
 where
     T: Copy + PartialEq,
 {
-    fn calculate<F>(
-        reactor: &Reactor<T>,
-        dependencies: &[CellID],
-        computation: F,
-    ) -> Result<T, CellID>
+    /// caution: use only when you know all dependencies are legal
+    fn calculate<F>(cells: &[Cell<T>], dependencies: &[CellID], computation: F) -> T
     where
         F: Fn(&[T]) -> T,
     {
-        let values = dependencies
+        let values: Vec<T> = dependencies
             .iter()
-            .map(|cid| reactor.value(*cid).ok_or(*cid))
-            .collect::<Result<Vec<T>, CellID>>()?;
-        Ok(computation(&values))
+            .map(|cid| cells[cid.idx()].value())
+            .collect();
+        computation(&values)
     }
 
     fn new<F>(reactor: &Reactor<T>, dependencies: &[CellID], computation: F) -> Result<Self, CellID>
     where
         F: 'static + Fn(&[T]) -> T,
     {
+        // ensure that all dependencies are legal
+        if let Some(missing) = dependencies
+            .iter()
+            .find(|id| id.idx() >= reactor.cells.len())
+        {
+            return Err(*missing);
+        }
+
         Ok(Self {
             dependencies: dependencies.to_owned(),
-            cache: Self::calculate(reactor, dependencies, &computation)?,
+            cache: Self::calculate(&reactor.cells, dependencies, &computation),
             computation: Box::new(computation),
             fwd: Vec::new(),
         })
     }
 
-    fn recompute(&mut self, reactor: &Reactor<T>) {
-        self.cache = Self::calculate(reactor, &self.dependencies, &self.computation)
-            .expect("a previously valid ComputeCell was invalidated by loss of dependency");
+    fn recompute(&mut self, cells: &[Cell<T>]) {
+        self.cache = Self::calculate(cells, &self.dependencies, &self.computation);
     }
 }
 
@@ -116,11 +120,25 @@ enum Cell<T> {
     Compute(ComputeCell<T>),
 }
 
-impl<T> Cell<T> {
+impl<T: Copy + PartialEq> Cell<T> {
     fn fwd(&self) -> &[ComputeCellID] {
         match self {
             Self::Input(input) => &input.fwd,
             Self::Compute(compute) => &compute.fwd,
+        }
+    }
+
+    fn fwd_mut(&mut self) -> &mut Vec<ComputeCellID> {
+        match self {
+            Self::Input(input) => &mut input.fwd,
+            Self::Compute(compute) => &mut compute.fwd,
+        }
+    }
+
+    fn value(&self) -> T {
+        match self {
+            Self::Input(ic) => ic.value,
+            Self::Compute(cc) => cc.cache,
         }
     }
 }
@@ -160,45 +178,44 @@ impl<T: Copy + PartialEq> Reactor<T> {
     where
         F: 'static + Fn(&[T]) -> T,
     {
-        Ok(ComputeCellID(self.push_cell(Cell::Compute(
-            ComputeCell::new(self, dependencies, computation)?,
-        ))))
-    }
-
-    // retrieve the cell at the specified index
-    fn cell(&self, id: CellID) -> Option<&Cell<T>> {
-        if id.idx() >= self.cells.len() {
-            None
-        } else {
-            Some(&self.cells[id.idx()])
+        let idx = ComputeCellID(self.push_cell(Cell::Compute(ComputeCell::new(
+            self,
+            dependencies,
+            computation,
+        )?)));
+        for dependency in dependencies.iter() {
+            if dependency.idx() >= self.cells.len() {
+                return Err(*dependency);
+            }
+            self.cells[dependency.idx()].fwd_mut().push(idx.into());
         }
+        Ok(idx)
     }
 
-    // retrieve the cell at the specififed index mutably
-    fn cell_mut(&mut self, id: CellID) -> Option<&mut Cell<T>> {
+    fn idx(&self, id: CellID) -> Option<usize> {
         if id.idx() >= self.cells.len() {
             None
         } else {
-            Some(&mut self.cells[id.idx()])
+            Some(id.idx())
         }
     }
 
     // Retrieves the current value of the cell, or None if the cell does not exist.
     pub fn value(&self, id: CellID) -> Option<T> {
-        match self.cell(id)? {
-            Cell::Input(ic) => Some(ic.value),
-            Cell::Compute(cc) => Some(cc.cache),
-        }
+        Some(self.cells[self.idx(id)?].value())
     }
 
     // Sets the value of the specified input cell.
     pub fn set_value(&mut self, id: InputCellID, new_value: T) -> bool {
-        let mut recompute;
-
-        match self.cell_mut(id.into()) {
+        let idx = match self.idx(id.into()) {
             None => return false,
-            Some(Cell::Compute(_)) => return false,
-            Some(Cell::Input(ref mut ic)) => {
+            Some(idx) => idx,
+        };
+
+        let mut recompute;
+        match self.cells[idx] {
+            Cell::Compute(_) => return false,
+            Cell::Input(ref mut ic) => {
                 ic.value = new_value;
 
                 // Construct a list of cells to recompute.
@@ -227,8 +244,12 @@ impl<T: Copy + PartialEq> Reactor<T> {
 
         for redo_id in recompute {
             let ComputeCellID(idx) = redo_id;
-            match self.cells[idx] {
-                Cell::Compute(ref mut cc) => cc.recompute(&self),
+
+            // split the range so we can immutably borrow the lower portion while
+            // we mutably borrow the upper portion
+            let (lower, upper) = self.cells.split_at_mut(idx);
+            match upper[0] {
+                Cell::Compute(ref mut cc) => cc.recompute(lower),
                 _ => unreachable!(),
             }
         }
