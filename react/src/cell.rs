@@ -1,5 +1,5 @@
 use crate::{
-    ids::{CellID, ComputeCellID},
+    id::{CallbackID, CellID, ComputeCellID},
     Reactor,
 };
 
@@ -20,8 +20,9 @@ impl<T> InputCell<T> {
 pub(crate) struct ComputeCell<T> {
     dependencies: Vec<CellID>,
     computation: Box<dyn Fn(&[T]) -> T>,
-    cache: T,
+    pub(crate) cache: T,
     fwd: Vec<ComputeCellID>,
+    pub(crate) callbacks: Vec<CallbackID>,
 }
 
 impl<T> ComputeCell<T>
@@ -61,6 +62,7 @@ where
             cache: Self::calculate(&reactor.cells, dependencies, &computation),
             computation: Box::new(computation),
             fwd: Vec::new(),
+            callbacks: Vec::new(),
         })
     }
 

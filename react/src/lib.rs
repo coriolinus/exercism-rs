@@ -1,23 +1,22 @@
-pub mod ids;
-pub use ids::{CallbackID, CellID, ComputeCellID, InputCellID};
+pub mod id;
+pub use id::{CallbackID, CellID, ComputeCellID, InputCellID};
 
-pub mod cells;
-use cells::{Cell, ComputeCell, InputCell};
+pub mod cell;
+use cell::{Cell, ComputeCell, InputCell};
 
-#[derive(Debug, PartialEq)]
-pub enum RemoveCallbackError {
-    NonexistentCell,
-    NonexistentCallback,
-}
+pub mod callback;
+use callback::Callback;
+pub use callback::RemoveCallbackError;
 
 #[derive(Default)]
-pub struct Reactor<T> {
+pub struct Reactor<'a, T> {
     cells: Vec<Cell<T>>,
+    callbacks: Vec<Option<Callback<'a, T>>>,
 }
 
-impl<T: Copy + PartialEq> Reactor<T> {
+impl<'a, T: Copy + PartialEq + Default> Reactor<'a, T> {
     pub fn new() -> Self {
-        Reactor { cells: Vec::new() }
+        Default::default()
     }
 
     fn push_cell(&mut self, cell: Cell<T>) -> usize {
@@ -116,12 +115,35 @@ impl<T: Copy + PartialEq> Reactor<T> {
             // we mutably borrow the upper portion
             let (lower, upper) = self.cells.split_at_mut(idx);
             match upper[0] {
-                Cell::Compute(ref mut cc) => cc.recompute(lower),
+                Cell::Compute(ref mut cc) => {
+                    let value = cc.cache;
+                    cc.recompute(lower);
+                    if value != cc.cache {
+                        for &CallbackID(cbid) in &cc.callbacks {
+                            match self.callbacks[cbid] {
+                                None => unreachable!("only legal callbacks are retained"),
+                                Some(ref mut cb) => cb(cc.cache),
+                            }
+                        }
+                    }
+                }
                 _ => unreachable!(),
             }
         }
 
         true
+    }
+
+    fn compute_mut(&mut self, id: ComputeCellID) -> Option<&mut ComputeCell<T>> {
+        let ComputeCellID(idx) = id;
+        if idx >= self.cells.len() {
+            return None;
+        }
+
+        match self.cells[idx] {
+            Cell::Input(_) => return None,
+            Cell::Compute(ref mut cc) => Some(cc),
+        }
     }
 
     // Adds a callback to the specified compute cell.
@@ -130,34 +152,43 @@ impl<T: Copy + PartialEq> Reactor<T> {
     //
     // Callbacks on input cells will not be tested.
     //
-    // The semantics of callbacks (as will be tested):
+    // The semantics of callbacks:
     // For a single set_value call, each compute cell's callbacks should each be called:
     // * Zero times if the compute cell's value did not change as a result of the set_value call.
     // * Exactly once if the compute cell's value changed as a result of the set_value call.
-    //   The value passed to the callback should be the final value of the compute cell after the
+    //   The value passed to the callback is the final value of the compute cell after the
     //   set_value call.
-    pub fn add_callback<F: FnMut(T) -> ()>(
-        &mut self,
-        _id: ComputeCellID,
-        _callback: F,
-    ) -> Option<CallbackID> {
-        unimplemented!()
+    pub fn add_callback<F>(&mut self, id: ComputeCellID, callback: F) -> Option<CallbackID>
+    where
+        F: 'a + FnMut(T),
+    {
+        let cb_idx = self.callbacks.len();
+        self.compute_mut(id)?.callbacks.push(CallbackID(cb_idx));
+        self.callbacks.push(Some(Box::new(callback)));
+        Some(CallbackID(cb_idx))
     }
 
     // Removes the specified callback, using an ID returned from add_callback.
     //
     // Returns an Err if either the cell or callback does not exist.
-    //
-    // A removed callback should no longer be called.
     pub fn remove_callback(
         &mut self,
         cell: ComputeCellID,
         callback: CallbackID,
     ) -> Result<(), RemoveCallbackError> {
-        unimplemented!(
-            "Remove the callback identified by the CallbackID {:?} from the cell {:?}",
-            callback,
-            cell,
-        )
+        let CallbackID(idx) = callback;
+        if idx >= self.callbacks.len() {
+            return Err(RemoveCallbackError::NonexistentCallback);
+        }
+        if self.callbacks[idx].is_none() {
+            return Err(RemoveCallbackError::NonexistentCallback);
+        }
+        self.compute_mut(cell)
+            .ok_or(RemoveCallbackError::NonexistentCell)?
+            .callbacks
+            .retain(|cbid| *cbid != callback);
+        self.callbacks[idx] = None;
+
+        Ok(())
     }
 }
