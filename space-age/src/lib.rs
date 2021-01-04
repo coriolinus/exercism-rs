@@ -1,22 +1,19 @@
-// The code below is a stub. Just enough to satisfy the compiler.
-// In order to pass the tests you can add-to or change any of this code.
+const EARTH_YEAR_SECONDS: f64 = 31557600.0;
 
-pub struct Duration {
-    seconds: u64,
-}
+pub struct Duration(f64);
 
 impl From<u64> for Duration {
     fn from(s: u64) -> Self {
-        Duration { seconds: s }
+        Duration(s as f64)
     }
 }
 
 pub trait Planet {
-    fn years_during(d: &Duration) -> f64 {
-        d.seconds as f64 / Self::seconds_per_year()
-    }
+    const SECONDS_PER_YEAR: f64;
 
-    fn seconds_per_year() -> f64;
+    fn years_during(d: &Duration) -> f64 {
+        d.0 / Self::SECONDS_PER_YEAR
+    }
 }
 
 pub struct Mercury;
@@ -28,51 +25,31 @@ pub struct Saturn;
 pub struct Uranus;
 pub struct Neptune;
 
+// For each planet:
+//
+// earth years per orbit * seconds per earth year = seconds per orbit
+
 impl Planet for Mercury {
-    fn seconds_per_year() -> f64 {
-        // earth years per orbit * seconds per earth year = seconds per orbit
-        0.2408467 * 31557600.0
-    }
+    const SECONDS_PER_YEAR: f64 = 0.2408467 * EARTH_YEAR_SECONDS;
 }
 impl Planet for Venus {
-    fn seconds_per_year() -> f64 {
-        // earth years per orbit * seconds per earth year = seconds per orbit
-        0.61519726 * 31557600.0
-    }
+    const SECONDS_PER_YEAR: f64 = 0.61519726 * EARTH_YEAR_SECONDS;
 }
 impl Planet for Earth {
-    fn seconds_per_year() -> f64 {
-        // earth years per orbit * seconds per earth year = seconds per orbit
-        31557600.0
-    }
+    const SECONDS_PER_YEAR: f64 = 1.0 * EARTH_YEAR_SECONDS;
 }
 impl Planet for Mars {
-    fn seconds_per_year() -> f64 {
-        // earth years per orbit * seconds per earth year = seconds per orbit
-        1.8808158 * 31557600.0
-    }
+    const SECONDS_PER_YEAR: f64 = 1.8808158 * EARTH_YEAR_SECONDS;
 }
 impl Planet for Jupiter {
-    fn seconds_per_year() -> f64 {
-        // earth years per orbit * seconds per earth year = seconds per orbit
-        11.862615 * 31557600.0
-    }
+    const SECONDS_PER_YEAR: f64 = 11.862615 * EARTH_YEAR_SECONDS;
 }
 impl Planet for Saturn {
-    fn seconds_per_year() -> f64 {
-        // earth years per orbit * seconds per earth year = seconds per orbit
-        29.447498 * 31557600.0
-    }
+    const SECONDS_PER_YEAR: f64 = 29.447498 * EARTH_YEAR_SECONDS;
 }
 impl Planet for Uranus {
-    fn seconds_per_year() -> f64 {
-        // earth years per orbit * seconds per earth year = seconds per orbit
-        84.016846 * 31557600.0
-    }
+    const SECONDS_PER_YEAR: f64 = 84.016846 * EARTH_YEAR_SECONDS;
 }
 impl Planet for Neptune {
-    fn seconds_per_year() -> f64 {
-        // earth years per orbit * seconds per earth year = seconds per orbit
-        164.79132 * 31557600.0
-    }
+    const SECONDS_PER_YEAR: f64 = 164.79132 * EARTH_YEAR_SECONDS;
 }
