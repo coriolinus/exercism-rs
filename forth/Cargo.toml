@@ -1,7 +1,7 @@
 [package]
 name = "forth"
-version = "0.0.0"
+version = "0.1.0"
+edition = "2018"
 
 [dependencies]
-regex = "0.1"
-lazy_static = "0.1.*"
+genawaiter = "0.99.1"
