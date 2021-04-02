@@ -1,7 +1,7 @@
 use crate::{Error, Result, Value};
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Primitive {
     Add,
     Sub,
@@ -49,7 +49,7 @@ pub(crate) fn evaluate(stack: &mut Vec<Value>, primitive: Primitive) -> Result {
         }
         Primitive::Div => {
             let (r, l) = (pop()?, pop()?);
-            stack.push(l / r);
+            stack.push(l.checked_div(r).ok_or(Error::DivisionByZero)?);
         }
         Primitive::Dup => {
             let v = pop()?;

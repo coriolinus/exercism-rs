@@ -1,14 +1,16 @@
-use crate::{low::Primitive, Error};
+use crate::{low::Primitive, Error, Value};
 use genawaiter::{rc::gen, yield_};
 use std::collections::HashMap;
 
 pub(crate) type Definitions = HashMap<String, Vec<Vec<Token>>>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Token {
     BeginDefinition,
     EndDefinition,
     Primitive(Primitive),
+    /// `Reference`s are always valid, and point to a specific version of the definition,
+    /// preventing errors arising from redefinition.
     Reference(String, usize),
 }
 
@@ -18,20 +20,19 @@ impl Token {
     /// We can't use `std::str::FromStr`, even though it's directly applicable,
     /// because this method requires some context: the `Definitions`.
     fn from_str(word: &str, definitions: &Definitions) -> Result<Token, Error> {
-        word.parse::<Primitive>()
-            .map(Token::Primitive)
-            .or_else(|_| match word {
-                ":" => Ok(Token::BeginDefinition),
-                ";" => Ok(Token::EndDefinition),
-                _ => definitions
-                    .get(word)
-                    .map(|versions| Token::Reference(word.to_string(), versions.len()))
-                    .ok_or(Error::UnknownWord),
-            })
+        match word {
+            ":" => Ok(Token::BeginDefinition),
+            ";" => Ok(Token::EndDefinition),
+            _ => definitions
+                .get(word)
+                .map(|versions| Token::Reference(word.to_string(), versions.len() - 1))
+                .or_else(|| word.parse::<Primitive>().map(Token::Primitive).ok())
+                .ok_or(Error::UnknownWord),
+        }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum Mode {
     Normal,
     ExpectName,
@@ -64,6 +65,8 @@ pub(crate) fn evaluate<'a>(
                 }
                 Mode::ExpectName => {
                     // we need some token here, but it's arbitrary and ignored.
+                    // we could define a custom `Invalid` token, but that would pollute
+                    // all relevant match statements; better to use a stand-in.
                     Token::EndDefinition
                 }
             };
@@ -76,7 +79,14 @@ pub(crate) fn evaluate<'a>(
                         yield_!(item);
                     }
                 }
-                Mode::ExpectName => mode = Mode::Definition(word.to_string(), Vec::new()),
+                Mode::ExpectName => {
+                    // numbers aren't allowed as custom words (and we skipped the normal parsing)
+                    if word.parse::<Value>().is_ok() {
+                        yield_!(Err(Error::InvalidWord));
+                        continue;
+                    }
+                    mode = Mode::Definition(word, Vec::new());
+                }
                 // invariant in definition handler: the only tokens which ever get
                 // pushed to `subsequent` are primitives and (valid) references.
                 Mode::Definition(_, ref mut subsequent) => match token {
@@ -93,6 +103,10 @@ pub(crate) fn evaluate<'a>(
                     }
                 },
             }
+        }
+
+        if mode != Mode::Normal {
+            yield_!(Err(Error::InvalidWord));
         }
     }).into_iter()
 }
